@@ -3,11 +3,12 @@ Project steps
 - [ ] 2) Implement db.py to create / drop databases - depends on (1)
 - [ ] implement page.py
 - [ ] 3) Implement index.py - Kai
+    - [ ] init
     - [ ] locate 
     - [ ] locate_range
     - [ ] create_index
     - [ ] drop_index
-- [ ] 3) quary.py
+- [ ] 3) query.py
     - [ ] delete
     - [ ] insert
     - [ ] select
