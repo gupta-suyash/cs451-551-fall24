@@ -2,8 +2,8 @@ Project steps
 - [ ] 1) Implement table.py - created table
 - [ ] 2) Implement db.py to create / drop databases - depends on (1)
 - [ ] implement page.py
-- [ ] 3) Implement index.py
-    - [ ] locate
+- [ ] 3) Implement index.py - Kai
+    - [ ] locate 
     - [ ] locate_range
     - [ ] create_index
     - [ ] drop_index
