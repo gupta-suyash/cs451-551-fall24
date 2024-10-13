@@ -1,3 +1,14 @@
+"""
+The Query class provides standard SQL operations such as insert, select, update, delete, and sum. 
+The select function returns all the records matching the search key (if any), and only the projected 
+columns of the matching records are returned. The insert function will insert a new record in the 
+table. All columns should be passed a non-NULL value when inserting. The update function 
+updates values for the specified set of columns. The delete function will delete the record with the
+specified key from the table. The sum function will sum over the values of the selected column for 
+a range of records specified by their key values. We query tables by direct function calls rather 
+than parsing SQL queries.
+"""
+
 from lstore.table import Table, Record
 from lstore.index import Index
 
