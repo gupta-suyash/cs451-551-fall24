@@ -8,7 +8,7 @@ drops the specified table
 """
 
 from lstore.table import Table
-from errors import NotUniqueError
+from errors import TableNotUniqueError
 
 class Database():
 
@@ -31,7 +31,7 @@ class Database():
     """
     def create_table(self, name, num_columns, key_index):
         if self.contains_table(name): # I figure that db tables should have unique names. -Kai
-            raise NotUniqueError
+            raise TableNotUniqueError
 
         table = Table(name, num_columns, key_index)
         self.tables.append(table)
@@ -39,7 +39,7 @@ class Database():
     
 
     def contains_table(self, name: str) -> bool:
-        return self.table[name] is not None
+        return self.tables.get(name) is not None
 
     
     """

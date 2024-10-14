@@ -124,16 +124,6 @@ def test_get_range_speed(classes, operations):
 
 from config import Config
 
-Config.display_config()
-
-from lstore.db import Database
-
-db = Database()
-
-db.create_table("Hello World", 10, -1)
-db.get_table("Hello World").index.create_index(4)
-
-
 
 
 
@@ -156,3 +146,26 @@ db.get_table("Hello World").index.create_index(4)
 #   HashMap:            O(n) Very expensive.
 
 # Consider using the bplustree library. It sores the tree in a file.
+
+
+
+
+
+
+
+
+
+
+
+
+from lstore.page import Page
+
+
+page = Page()
+value = b'Hello World'
+
+import sys
+print(sys.getsizeof(value))
+
+page.write(b'\x11' * 8)
+page.write(b'\x01' * 8)
