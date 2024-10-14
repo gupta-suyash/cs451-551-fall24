@@ -16,28 +16,38 @@ import sys
 class Page:
 
     def __init__(self, page_size=Config.page_size, cell_size=Config.page_cell_size):
-        self.num_records = 0
+        self.num_cells = 0
         self.data = bytearray(page_size)
         self.cell_size = cell_size
 
-    def __locate(self, cell_position):
-        return self.cell_size * cell_position
+    def __locate(self, cell_number):
+        index = self.cell_size * cell_number
+        assert index < len(self.data)
+        return self.cell_size * cell_number
         
 
     def has_capacity(self):
-        return Config.page_size >= (self.num_records + 1) * self.cell_size
+        return Config.page_size >= (self.num_cells + 1) * self.cell_size
 
     def write(self, value):
-        # assert(getsizeof(value) == self.cell_size)
-        start_index = self.__locate(self.num_records)
+        assert(len(value) <= self.cell_size)
+        start_index = self.__locate(self.num_cells)
 
         if self.has_capacity():
             self.data[start_index:start_index+self.cell_size] = value
         else:
             raise PageNoCapacityError
 
-        self.num_records += 1
+        self.num_cells += 1
 
-        print(self.data[:100])
+    def read(self, cell_number) -> bytes:
+        assert(cell_number < self.num_cells)
+        start_index = self.__locate(cell_number)
+        return self.data[start_index:start_index + self.cell_size]
+    
+    def print(self, start_cell, end_cell):
+        start_index = self.__locate(start_cell)
+        end_index = self.__locate(end_cell) + self.cell_size
+        print(self.data[start_index:end_index + self.cell_size])
 
 

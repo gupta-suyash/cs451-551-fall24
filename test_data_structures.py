@@ -162,10 +162,13 @@ from lstore.page import Page
 
 
 page = Page()
-value = b'Hello World'
+value = (139076942012340798).to_bytes(8)
+print(value)
+page.write(value)
+page.print(0,0)
+print(int.from_bytes(page.read(0)))
 
-import sys
-print(sys.getsizeof(value))
+#for i in range(100):
+#    page.write(b'Hello World' * 8)
 
-page.write(b'\x11' * 8)
-page.write(b'\x01' * 8)
+# print(page.read(10).decode()) 

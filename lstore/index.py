@@ -39,7 +39,7 @@ class Index:
         """
         returns the location of all records with the given value on column "column"
         """
-        # assert column < self.table.num_columns and column >= 0, "Index.locate should receive a valid column number"
+        assert column < self.table.num_columns and column >= 0, "Index.locate should receive a valid column number"
         self.usage_histogram[column][POINT_QUERY] += 1
 
         if self.indices[column] is None:
