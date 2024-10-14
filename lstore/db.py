@@ -13,13 +13,16 @@ from errors import TableNotUniqueError, TableDoesNotExistError
 class Database():
     def __init__(self):
         self.tables = {} # Dictionary of name - Table pairs
+        
 
     # Not required for milestone1
     def open(self, path):
         raise NotImplementedError
+    
 
     def close(self):
         raise NotImplementedError
+    
 
     def create_table(self, name, num_columns, key_index):
         """Creates a new table
@@ -43,13 +46,11 @@ class Database():
         
         """
         # Check that the name doesn't exist already
-        if (self.tables.get(name) is not None):
+        if (name in self.tables):
             raise TableNotUniqueError
         
         table = Table(name, num_columns, key_index)
-        self.tables[name] = table  # Assign the newly created table to the database
-        return table
-
+        self.tables[name] = table
 
     
     def drop_table(self, name):
@@ -64,11 +65,10 @@ class Database():
         ------
         
         """
-
-        if (self.tables.get(name)):
-            del self.tables[name] # Remove the table from the database
-        else:
+        if (name not in self.tables):
             raise TableDoesNotExistError(f"cannot drop table `{name}` because it does not exist")
+        
+        del self.tables[name]
 
     
     def get_table(self, name):
@@ -85,7 +85,7 @@ class Database():
             The table that was found in the current database
             or `None` if not found.
         """
-        if self.tables.get(name) is None:
+        if (name not in self.tables):
             raise TableDoesNotExistError(f"cannot get table `{name}` because it does not exist")
 
         return self.tables.get(name)
@@ -96,9 +96,6 @@ class TestDatabase(unittest.TestCase):
     def setUp(self):
         self.db = Database()
         self.db.create_table("foo", 3, 0)
-
-    def tearDown(self):
-        del self.db
 
     """def test():
         TestDatabase.create_table()
