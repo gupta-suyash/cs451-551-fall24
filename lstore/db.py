@@ -45,7 +45,7 @@ class Database():
 
         table = Table(name, num_columns, key_index)
         # Check that the name doesn't exist already
-        if (self.tables[name] == None):
+        if (name in self.tables):
             # TODO: throw error
             pass
         else:
@@ -66,7 +66,7 @@ class Database():
         
         """
 
-        if (self.tables[name]):
+        if (name in self.tables):
             del self.tables[name] # Remove the table from the database
         else:
             # TODO: Throw an error
