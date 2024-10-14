@@ -160,15 +160,7 @@ from config import Config
 
 from lstore.page import Page
 
+import unittest
+from lstore.db import Database, TestDatabase
 
-page = Page()
-value = (139076942012340798).to_bytes(8)
-print(value)
-page.write(value)
-page.print(0,0)
-print(int.from_bytes(page.read(0)))
-
-#for i in range(100):
-#    page.write(b'Hello World' * 8)
-
-# print(page.read(10).decode()) 
+unittest.main()

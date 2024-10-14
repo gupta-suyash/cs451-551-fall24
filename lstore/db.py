@@ -8,7 +8,7 @@ drops the specified table
 """
 
 from lstore.table import Table
-from errors import TableNotUniqueError
+from errors import TableNotUniqueError, TableDoesNotExistError
 
 class Database():
     def __init__(self):
@@ -42,15 +42,14 @@ class Database():
         ------
         
         """
-
-        table = Table(name, num_columns, key_index)
         # Check that the name doesn't exist already
-        if (self.tables[name] == None):
-            # TODO: throw error
-            pass
-        else:
-            self.tables[name] = table  # Assign the newly created table to the database
-            return table
+        if (self.tables.get(name) is not None):
+            raise TableNotUniqueError
+        
+        table = Table(name, num_columns, key_index)
+        self.tables[name] = table  # Assign the newly created table to the database
+        return table
+
 
     
     def drop_table(self, name):
@@ -66,11 +65,10 @@ class Database():
         
         """
 
-        if (self.tables[name]):
+        if (self.tables.get(name)):
             del self.tables[name] # Remove the table from the database
         else:
-            # TODO: Throw an error
-            pass
+            raise TableDoesNotExistError(f"cannot drop table `{name}` because it does not exist")
 
     
     def get_table(self, name):
@@ -87,5 +85,55 @@ class Database():
             The table that was found in the current database
             or `None` if not found.
         """
+        if self.tables.get(name) is None:
+            raise TableDoesNotExistError(f"cannot get table `{name}` because it does not exist")
 
-        return self.tables[name]
+        return self.tables.get(name)
+    
+
+import unittest
+class TestDatabase(unittest.TestCase):
+    def setUp(self):
+        self.db = Database()
+        self.db.create_table("foo", 3, 0)
+
+    def tearDown(self):
+        del self.db
+
+    """def test():
+        TestDatabase.create_table()
+        TestDatabase.create_existing_table()
+        TestDatabase.delete_table()
+        TestDatabase.delete_non_existing_table()
+        TestDatabase.get_table()
+        TestDatabase.get_non_existing_table()
+        """
+
+    def test_create_table(self):
+        self.assertTrue(self.db.tables.get("foo"))
+
+    def test_create_existing_table(self):
+        with self.assertRaises(TableNotUniqueError):
+            self.db.create_table("foo", 2, 1)
+
+    def test_drop_table(self):
+        self.db.drop_table("foo")
+        with self.assertRaises(TableDoesNotExistError):
+            self.db.get_table("foo")
+
+    def test_drop_non_existant_table(self):
+        with self.assertRaises(TableDoesNotExistError):
+            self.db.drop_table("bar")
+
+    def test_double_drop_table(self):
+        self.db.drop_table("foo")
+        with self.assertRaises(TableDoesNotExistError):
+            self.db.drop_table("foo")
+
+    def test_get_table(self):
+        self.db.get_table("foo")
+
+    def test_get_non_existant_table(self):
+        with self.assertRaises(TableDoesNotExistError):
+            self.db.get_table("bar")
+

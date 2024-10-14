@@ -30,7 +30,7 @@ class Page:
         return Config.page_size >= (self.num_cells + 1) * self.cell_size
 
     def write(self, value):
-        assert(len(value) <= self.cell_size)
+        assert(len(value) <= self.cell_size)        # Consider if this should be len(value) == self.cell_size instead
         start_index = self.__locate(self.num_cells)
 
         if self.has_capacity():
@@ -40,8 +40,8 @@ class Page:
 
         self.num_cells += 1
 
-    def read(self, cell_number) -> bytes:
-        assert(cell_number < self.num_cells)
+    def read(self, cell_number: int) -> bytes:
+        assert(cell_number < self.num_cells and cell_number >= 0)
         start_index = self.__locate(cell_number)
         return self.data[start_index:start_index + self.cell_size]
     

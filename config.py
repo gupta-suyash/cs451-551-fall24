@@ -22,4 +22,4 @@ class Config:
         print(f"Page Cell Size: {Config.page_cell_size}")
         print(f"Index data structure: {Config.index_data_structure.__name__}")
         print(f"B+ Tree minimum degree: {Config.b_plus_tree_minimum_degree}")
-        print(f"L-Store is Cumulative")
+        print(f"L-Store is Cumulative: {Config.lstore_is_cumulative}")

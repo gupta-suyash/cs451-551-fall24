@@ -1,5 +1,5 @@
 class TableNotUniqueError(Exception):
-    def __init__(self, message="Value must be unique"):
+    def __init__(self, message="A Table must have a unique name"):
         self.message = message
         super().__init__(self.message)
 
