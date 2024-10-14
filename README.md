@@ -1,6 +1,6 @@
 Project steps
 - [ ] 1) Implement table.py - created table
-- [ ] 2) Implement db.py to create / drop databases - depends on (1)
+- [x] 2) Implement db.py to create / drop databases - Michael
 - [ ] implement page.py
 - [ ] 3) Implement index.py - Kai
     - [ ] init
