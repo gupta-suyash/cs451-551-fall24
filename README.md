@@ -25,3 +25,5 @@ Arrangemets for next meeting - 10/13/2024 16:
 questions:
 Do we need to implement version mechanism?
 differences between m1 testing and m1 exam testing?
+
+Shared doc: https://docs.google.com/document/d/1jEqUAyMgjovtRJGCDQOOW3PodXMTMxofAZ57CrsmXPI/edit?usp=sharing

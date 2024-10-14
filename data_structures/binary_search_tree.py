@@ -50,31 +50,56 @@ class Node:
 
 
 class BSTree:
-    def __init__(self):
+    """
+    Binary Search Tree.
+    You can use this as a dictionary!
+
+    Operations:
+    insert - O(lg(h))
+    get - O(lg(h))
+    contains_key - O(lg(h))
+    minimum - O(lg(h))
+    maximum - O(lg(h))
+    remove - O(lg(h))
+    len - O(1)
+    keys - O(nlg(h)) i'm pretty sure
+    """
+
+
+    def __init__(self, unique: bool=True):
         self.root = None
         self.length = 0
-        print("Binary Search Tree Created at ", __name__)
+        self.unique = unique
     
-
-    def insert(self, key, value):
+    # TODO: make sure this handles collisions gracefully. Le
+    def insert(self, key, value) -> bool:
         self.length += 1
-        z = Node(key, value)
-        y = None
-        x = self.root
-        while x is not None:
-            y = x
-            if z.key < x.key:
-                x = x.left
-            else:
-                x = x.right
-        z.parent = y
-        if y is None:
-            self.root = z
-        elif z.key < y.key:
-            y.left = z
-        else:
-            y.right = z
+        new_node = Node(key, value)
+        parent_node = None
+        node = self.root
 
+        while node is not None:
+            parent_node = node
+            if self.unique and new_node.key == node.key:
+                return False
+
+            if new_node.key < node.key:
+                node = node.left
+            else:
+                node = node.right
+
+        new_node.parent = parent_node
+
+        if parent_node is None:
+            self.root = new_node
+        elif new_node.key < parent_node.key:
+            parent_node.left = new_node
+        else:
+            parent_node.right = new_node
+
+        return True
+
+    # TODO: if not unique keys, get the key node value, then node = node.successor while node.key == key.
     def get(self, key):
         if self.root is None:
             return None
@@ -122,7 +147,17 @@ class BSTree:
     
     def len(self):
         return self.length
+    
+    def keys(self):
+        if self.root is None:
+            return None
+        
+        node: Node = self.root.minimum()
+        keys = []
 
-    def delete(self, node):
-        # self.__transplant(Node(1, 2), Node(3, 1))
-        pass
+        while node is not None:
+            keys.append(node.key)
+            node = node.successor()
+            
+
+        return keys

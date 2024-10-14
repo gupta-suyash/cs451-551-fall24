@@ -1,3 +1,13 @@
+"""
+The Table class provides the core of our relational storage functionality. All columns are 64-bit
+integers in this implementation. Users mainly interact with tables through queries. Tables provide 
+a logical view of the actual physically stored data and mostly manage the storage and retrieval of 
+data. Each table is responsible for managing its pages and requires an internal page directory that, 
+given a RID, returns the actual physical location of the record. The table class should also manage 
+the periodical merge of its corresponding page ranges.
+"""
+
+
 from lstore.index import Index
 from time import time
 
