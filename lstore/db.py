@@ -13,7 +13,7 @@ from errors import TableNotUniqueError, TableDoesNotExistError
 class Database():
     def __init__(self):
         self.tables = {} # Dictionary of name - Table pairs
-        
+
 
     # Not required for milestone1
     def open(self, path):
@@ -96,15 +96,6 @@ class TestDatabase(unittest.TestCase):
     def setUp(self):
         self.db = Database()
         self.db.create_table("foo", 3, 0)
-
-    """def test():
-        TestDatabase.create_table()
-        TestDatabase.create_existing_table()
-        TestDatabase.delete_table()
-        TestDatabase.delete_non_existing_table()
-        TestDatabase.get_table()
-        TestDatabase.get_non_existing_table()
-        """
 
     def test_create_table(self):
         self.assertTrue(self.db.tables.get("foo"))
