@@ -162,5 +162,6 @@ from lstore.page import Page
 
 import unittest
 from lstore.db import Database, TestDatabase
+from lstore.page import Page, TestPage
 
 unittest.main()
