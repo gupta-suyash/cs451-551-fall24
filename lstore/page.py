@@ -19,6 +19,7 @@ class Page:
         self.num_cells = 0
         self.data = bytearray(page_size)
         self.cell_size = cell_size
+        self.page_id = id(self)
 
     # Locate does not check if the cell_number is valid.
     def __locate(self, cell_number):
@@ -28,7 +29,6 @@ class Page:
 
     def has_capacity(self):
         has_capacity = len(self.data) >= (self.num_cells + 1) * self.cell_size
-        print(f"{len(self.data)} {">=" if has_capacity else "<"} {(self.num_cells + 1) * self.cell_size}")
         return has_capacity
 
     def write(self, value):

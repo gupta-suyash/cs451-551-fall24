@@ -10,6 +10,7 @@ class Config:
     page_cell_size = 8   # Thats what the adssignment description said.
     index_data_structure = BSTree     # Make sure this datastructure- 1: works  2: impliments get(key), get_range(low_key, high_key), insert(key, value)
     b_plus_tree_minimum_degree = 2**7   #128
+    b_plus_tree_search_algorithm_threshold = 10 # Switch between a linear scan and binary search in b+ tree at this value. Might improve performance.
     lstore_is_cumulative = False
 
 

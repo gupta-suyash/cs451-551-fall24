@@ -17,10 +17,10 @@ class Index:
     """
     A data strucutre holding indices for various columns of a table. Key column should be indexd by default, other columns can be indexed through this object. Indices are usually B-Trees, but other data structures can be used as well.
     """
-    def __init__(self, table):
+    def __init__(self, table, DataStructure=Config.index_data_structure):
         # One index for each column. All are empty initially.
         self.indices = [None] *  table.num_columns
-        self.DataStructure = Config.index_data_structure
+        self.DataStructure = DataStructure
 
         # Table owns and Index and Index has a reference to that table that owns it.
         self.table = table

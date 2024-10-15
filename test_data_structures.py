@@ -163,5 +163,8 @@ from lstore.page import Page
 import unittest
 from lstore.db import Database, TestDatabase
 from lstore.page import Page, TestPage
+from utilities.algorithms import TestAlgorithms
+from data_structures.b_plus_tree import TestNode as TestBPlusNode
+from data_structures.b_plus_tree import TestBPlusTree
 
 unittest.main()
