@@ -11,7 +11,6 @@ implementing persistence in the next milestone.
 """
 from config import Config
 from errors import PageNoCapacityError, PageValueTooLargeError, PageKeyError
-import sys
 
 class Page:
 

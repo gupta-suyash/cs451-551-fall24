@@ -10,6 +10,7 @@ the periodical merge of its corresponding page ranges.
 
 from lstore.index import Index
 from time import time
+from lstore.page import Page
 
 INDIRECTION_COLUMN = 0
 RID_COLUMN = 1
@@ -37,7 +38,14 @@ class Table:
         self.num_columns = num_columns
         self.page_directory = {}
         self.index = Index(self)
-        pass
+
+        # Very rough implementaion of base and tail coupling, consider changing later
+        for i in range(num_columns):
+            self.page_directory[i] = [Page(), Page()]
+
+        self.page_directory['RID'] = [Page(), Page()]
+        self.page_directory['inderection'] = [Page(), Page()]
+        
 
     def __merge(self):
         print("merge is happening")
