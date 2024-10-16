@@ -1,6 +1,5 @@
 from data_structures.binary_search_tree import BSTree
-# from data_structures.b_plus_tree import BPlusTree
-from bplustree import BPlusTree
+from data_structures.b_plus_tree import BPlusTree
 from data_structures.hash_map import HashMap
 from data_structures.ordered_dict import OD
 from bintrees import *
@@ -24,7 +23,6 @@ def test_data_structure_correctness(DataStructure, operations):
     # Test data structure with one node.
     data_structure.insert(0, "a")
     # assert(data_structure.get(0) == "a")
-    print(data_structure.minimum())
     assert(data_structure.contains_key(0))
     assert(data_structure.minimum() == "a")
     assert(data_structure.maximum() == "a")
@@ -71,7 +69,7 @@ def test_data_structure_correctness(DataStructure, operations):
     print(100 * hit_rate[0] / (hit_rate[0] + hit_rate[1]), "%", sep="")
 
     # Get all of the items at once
-    data_structure.keys()
+    # data_structure.keys()
 
     data_structure.insert(2, "apple")
 
@@ -81,7 +79,7 @@ def test_data_structure_correctness(DataStructure, operations):
 
 @timer
 def test_data_structure_insert_speed(DataStructure, operations):
-    data_structure = DataStructure('tmp/tmp.db')
+    data_structure = DataStructure()
 
     for i in range(operations):
         key = random()
@@ -165,6 +163,22 @@ from lstore.db import Database, TestDatabase
 from lstore.page import Page, TestPage
 from utilities.algorithms import TestAlgorithms
 from data_structures.b_plus_tree import TestNode as TestBPlusNode
-from data_structures.b_plus_tree import TestBPlusTree
+from data_structures.b_plus_tree import BPlusTree, TestBPlusTree
 
 unittest.main()
+
+
+# test_data_structure_insert_speed(BPlusTree, 500_000)
+# test_data_structure_insert_speed(BSTree, 500_000)
+# test_data_structure_insert_speed(HashMap, 500_000)
+
+names = BPlusTree()
+
+names.insert("Kai", "Iverson")
+names.insert("Joe", "Fuck")
+names.insert("Frodo", "Baggins")
+names.insert("Paul", "Atrades")
+names.insert("Luke", "Skywalker")
+names.insert("Thanos", None)
+
+print(names.get("Kai"))

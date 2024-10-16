@@ -46,8 +46,11 @@ class Node:
         return True
     
     def __str__(self):
-        values = ["Node"] * len(self.values) if type(self.values[0]) is Node else self.values
-        return f"Node(minimum_degree={self.minimum_degree}, keys={self.keys}, values={values})"
+        # TODO: describe the path to the Node from the root
+        node_type = "Leaf" if self.is_leaf else "Internal"
+        value_string = f", values={self.values}" if self.is_leaf else ""
+        
+        return f"{node_type} Node(keys={self.keys}{value_string})"
 
         
 
@@ -137,36 +140,36 @@ class BPlusTree:
     len() -> b+ tree length
 
     """
-    def __init__(self, minimum_degree: int=Config.b_plus_tree_minimum_degree, debug_mode: bool=False):
+    def __init__(
+            self, 
+            minimum_degree: int=Config.b_plus_tree_minimum_degree, 
+            unique_keys: bool=False,
+            debug_mode: bool=False, 
+            search_algorithm_threshold=Config.b_plus_tree_search_algorithm_threshold
+        ):
         self.height = 0
         self.length = 0
+        self.link: Node = None
         self.minimum_degree = minimum_degree
-        self.search_algorithm_threshold = Config.b_plus_tree_search_algorithm_threshold
+        self.unique_keys = unique_keys
         self.root = Node(minimum_degree)
-        # TODO: maintain a self.link if the node is a leaf for efficient range queries.
 
-        # TODO: Debug Mode.
-        # When True, everytime a node is visited, call node.is_maintained()
-        # Also check that all leaves are at the same height.
+        self.search_algorithm_threshold = search_algorithm_threshold # When do we binary search keys and when do we linear scan keys?
         self.debug_mode = debug_mode 
-        # self.unique = unique # Eventually I think we should be able to control for this.
+        # TODO: Debug Mode.
 
     def is_maintained(self):
-        if not self.root.is_maintained(is_root=True):
-            print("root node is not maintained")
-            return False
+        # Raises descriptive error is root is not maintained.
+        self.root.is_maintained(is_root=True)
         
         # Check if all leaves are at the same height
         leaf_height = self._check_leaves_height(self.root, 0)
         if leaf_height is None:
-            print("Leaf height is not balanced")
-            return False
+            raise UnbalancedTreeError
         return True
 
     def _check_leaves_height(self, node: Node, current_height: int):
-        if not node.is_maintained(is_root=(current_height == 0)):
-            print(f"Node with keys {node.keys} is not maintained")
-            return None
+        node.is_maintained(is_root=(current_height==0))
         
         if node.is_leaf:
             # If it's a leaf node, return its height
@@ -200,18 +203,21 @@ class BPlusTree:
 
         while not node.is_leaf:
             path.append(node)
+            # Finds index where node.keys == key OR key could be inserted to maintain a non-decreasing node.keys
             index = self._find_key_index(node.keys, key)
 
-            if index < len(node.keys) and node.keys[index] < key:
-                node = node.values[index + 1]
-            else:
+            # I worked through every case logically to get this
+            if index == len(node.keys) or key < node.keys[index]:
                 node = node.values[index]
+            else:
+                node = node.values[index + 1]
 
+        # At this point, we should be at the correct leaf node to insert a key
         index = self._find_key_index(node.keys, key)
 
-        if index < len(node.keys) and node.keys[index] == key:
-            node.values[index] = value
-            return
+        # If we are in unique_keys mode, and the key already exists, raise error
+        if self.unique_keys and index < len(node.keys) and node.keys[index] == key:
+            raise NonUniqueKeyError(key)
         
         node.keys.insert(index, key)
         node.values.insert(index, value)
@@ -224,7 +230,7 @@ class BPlusTree:
         new_leaf = Node(self.minimum_degree, is_leaf=True)
         
         # Move half the keys and values to the new leaf node
-        mid_index = self.minimum_degree - 1
+        mid_index = self.minimum_degree
         new_leaf.keys = leaf_node.keys[mid_index:]
         new_leaf.values = leaf_node.values[mid_index:]
 
@@ -247,14 +253,15 @@ class BPlusTree:
             parent_node.keys.insert(index, new_leaf.keys[0])
             parent_node.values.insert(index + 1, new_leaf)
 
-            # Split the parent node if necessary
-            if len(parent_node.keys) == 2 * self.minimum_degree - 1:
+            # Split the parent node if too many keys
+            if len(parent_node.keys) >= 2 * self.minimum_degree:
                 self._split_internal_node(parent_node)
 
     def _split_internal_node(self, internal_node):
         new_internal = Node(self.minimum_degree, is_leaf=False)
         
-        mid_index = self.minimum_degree - 1
+        mid_index = self.minimum_degree
+        mid_key = internal_node.keys[mid_index]
         new_internal.keys = internal_node.keys[mid_index + 1:]
         new_internal.values = internal_node.values[mid_index + 1:]
 
@@ -265,7 +272,7 @@ class BPlusTree:
         # If the internal node is the root, create a new root
         if internal_node == self.root:
             new_root = Node(self.minimum_degree, is_leaf=False)
-            new_root.keys.append(internal_node.keys[-1])  # Promote the middle key
+            new_root.keys.append(mid_key)  # Promote the middle key
             new_root.values.append(internal_node)  # Left child
             new_root.values.append(new_internal)  # Right child
             self.root = new_root
@@ -274,11 +281,12 @@ class BPlusTree:
             # Insert the promoted key into the parent node
             parent_node = self._find_parent(self.root, internal_node)
             index = self._find_key_index(parent_node.keys, internal_node.keys[-1])
-            parent_node.keys.insert(index, internal_node.keys[-1])
+            # parent_node.keys.insert(index, internal_node.keys[-1])
+            parent_node.keys.insert(index, mid_key)
             parent_node.values.insert(index + 1, new_internal)
 
             # Split the parent if necessary (recursive)
-            if len(parent_node.keys) == 2 * self.minimum_degree - 1:
+            if len(parent_node.keys) >= 2 * self.minimum_degree:
                 self._split_internal_node(parent_node)
 
     def _find_parent(self, current_node, child_node):
@@ -302,31 +310,50 @@ class BPlusTree:
     
     def get(self, key):
         node = self.root
-                
-        while node:
+
+        if len(node.keys) == 0:
+            return None
+
+        while not node.is_leaf:
             index = self._find_key_index(node.keys, key)
 
-            if node.is_leaf:
-                if index < len(node.keys) and node.keys[index] == key:
-                    return node.values[index]
-                else:
-                    return None
-                
-            if index < len(node.keys) and node.keys[index] < key:
-                node = node.values[index + 1]
-            else:
+            if index == len(node.keys) or key < node.keys[index]:
                 node = node.values[index]
+            else:
+                node = node.values[index + 1]
+
+        index = self._find_key_index(node.keys, key)
+
+        if index < len(node.keys) and key == node.keys[index]:
+            return node.values[index]
+        
+        return None
 
 
     # TODO: impliment each of these
     def contains_key(self, key) -> bool:
-        raise NotImplementedError
+        return True if self.get(key) else False
+    
 
     def minimum(self) -> Node:
-        raise NotImplementedError
+        node = self.root
+        if len(node.keys) == 0:
+            return None
+
+        while not node.is_leaf:
+            node = node.values[0]
+
+        return node.values[0]
 
     def maximum(self) -> Node:
-        raise NotImplementedError
+        node = self.root
+        if len(node.keys) == 0:
+            return None
+
+        while not node.is_leaf:
+            node = node.values[-1]
+
+        return node.values[-1]
 
     def remove(self, key):
         # self.length -= 1 if node is successfully removed
@@ -334,14 +361,37 @@ class BPlusTree:
         raise NotImplementedError
 
     def len(self):
-        # return self.length
-        raise NotImplementedError
+        return self.length
 
     def keys(self):
         raise NotImplementedError
 
     def values(self):
         raise NotImplementedError
+
+    def __eq__(self, other_tree):
+        return self._compare_nodes(self.root, other_tree.root)
+
+    def _compare_nodes(self, node1, node2):
+        if node1.minimum_degree != node2.minimum_degree:
+            return False
+
+        if node1.is_leaf != node2.is_leaf:
+            return False
+
+        if node1.keys != node2.keys:
+            print(f"keys{node1.keys} != keys{node2.keys}")
+            return False
+
+        # If both nodes are internal, compare their children
+        if not node1.is_leaf:
+            if len(node1.values) != len(node2.values):
+                return False
+            for child1, child2 in zip(node1.values, node2.values):
+                if not self._compare_nodes(child1, child2):
+                    return False
+
+        return True
     
 
 class TestBPlusTree(unittest.TestCase):
@@ -349,14 +399,17 @@ class TestBPlusTree(unittest.TestCase):
         self.tree = BPlusTree(minimum_degree=2)
 
     # I used https://www.cs.usfca.edu/~galles/visualization/BPlusTree.html to help me design this. -Kai
-    def test_tree_is_maintained(self):
+    # Its what a tree should look like after inserting 1 through 10 in order.
+    def make_generic_tree(self):
         # Root Node
-        self.tree.root.keys = [7]
+        tree = BPlusTree(2)
+
+        tree.root.keys = [7]
         
         # Internal Nodes
         internal1 = Node(2, False)
         internal2 = Node(2, False)
-        self.tree.root.values = [internal1, internal2]
+        tree.root.values = [internal1, internal2]
         
         # Leaf Nodes
         leaf11 = Node(2, True)
@@ -388,14 +441,79 @@ class TestBPlusTree(unittest.TestCase):
         leaf22.keys = [9, 10]
         leaf22.values = [9, 10]
 
-        self.assertTrue(self.tree.is_maintained())
+        return tree
+    
+    def test_generic_tree_is_maintained(self):
+        tree = self.make_generic_tree()
+        self.assertTrue(tree.is_maintained())
 
-    def test_generated_tree_is_maintained(self):
+    def test_eq(self):
+        tree1 = self.make_generic_tree()
+        tree2 = self.make_generic_tree()
+        self.assertEqual(tree1, tree2)
+
+    def test_not_eq(self):
+        tree1 = self.make_generic_tree()
+        tree2 = self.make_generic_tree()
+        tree2.root.values[0].values[0].keys = [0, 2]    # A leaf has keys [0, 2] instead of [1, 2]
+        self.assertTrue(tree2.is_maintained())
+        self.assertNotEqual(tree1, tree2)
+
+    def test_generated_tree_is_maintained_and_equals_generic_tree(self):
         tree = self.tree
         for i in range(1, 11):
             tree.insert(i, i)
 
-        self.assertTrue(self.tree.is_maintained())
-        
-        
+        for i in range(1, 11):
+            print(tree.get(i))
 
+
+        tree2 = self.make_generic_tree()
+
+        self.assertTrue(tree.is_maintained())
+        self.assertEqual(tree, tree2)
+
+    def test_insert_no_splits(self):
+        tree = self.tree
+        for i in range(1, 4):
+            tree.insert(i, i)
+
+        self.assertTrue(tree.is_maintained())
+
+        # The root node can hold all three so it shouldn't split
+        self.assertEqual(tree.root.keys, [1, 2, 3])
+
+    def test_insert_one_leaf_split(self):
+        tree = self.tree
+        for i in range(1, 5):
+            tree.insert(i, i)
+
+        tree.is_maintained()
+        self.assertEqual(tree.root.keys, [3])
+        self.assertEqual(tree.root.values[0].keys, [1, 2])
+        self.assertEqual(tree.root.values[1].keys, [3, 4])
+
+    def test_insert_two_leaf_split(self):
+        tree = self.tree
+        for i in range(6):
+            tree.insert(i, i)
+
+        tree.is_maintained()
+        self.assertEqual(tree.root.keys, [2, 4])
+        self.assertEqual(tree.root.values[0].keys, [0, 1])
+        self.assertEqual(tree.root.values[1].keys, [2, 3])
+        self.assertEqual(tree.root.values[2].keys, [4, 5]) 
+
+    def test_insert_duplicate_keys_1(self):
+        tree = self.make_generic_tree()
+        for i in range(10):
+            tree.insert(i, i)
+        
+        for i in range(10):
+            tree.insert(i, i)
+
+        print(tree.root)
+        for keys in tree.root.values[0].values:
+            print(keys)       
+
+        
