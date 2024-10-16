@@ -1,5 +1,6 @@
 from utilities.algorithms import binary_search, linear_search
 from config import Config
+from errors import *
 import unittest
 
 class Node:
@@ -17,36 +18,37 @@ class Node:
     Use for debuging.
     """
     def is_maintained(self, is_root) -> bool:
-        try:
-            # minimum_degree >= 2
-            assert(self.minimum_degree >= 2)
+        if self.minimum_degree < 2:
+            raise MinimumDegreeError(self.minimum_degree, self)
+        
+        if not is_root:
+            if len(self.keys) < self.minimum_degree - 1:
+                raise NonRootNodeKeyCountError(len(self.keys), self.minimum_degree - 1, self)
 
-            # Leaf nodes have a value for every key
-            # Internal nodes have one more value than keys
-            if self.is_leaf:
-                assert(len(self.values) == len(self.keys))
-            else:
-                assert(len(self.values) == len(self.keys) + 1)
+        if len(self.keys) > 2 * self.minimum_degree - 1:
+            raise MaxKeysExceededError(len(self.keys), self)
 
-            # Internal node values must be other nodes
-            if not self.is_leaf:
-                for value in self.values:
-                    assert type(value) is Node
+        if self.is_leaf:
+            if len(self.values) != len(self.keys):
+                raise LeafNodeValueError(len(self.values), len(self.keys), self)
+        else:
+            if len(self.values) != len(self.keys) + 1:
+                raise InternalNodeValueCountError(len(self.values), len(self.keys), self)
+            
+            for value in self.values:
+                if not isinstance(value, Node):
+                    raise InternalNodeTypeError(self)
 
-            # Every node other than the root must contain minimum_degree - 1 keys or greater.
-            if not is_root:
-                assert(len(self.keys) >= self.minimum_degree - 1)
+        for i in range(1, len(self.keys)):
+            if self.keys[i - 1] > self.keys[i]:
+                raise NonDecreasingOrderError(self)
 
-            # Every node may contain at most 2 * minimum_degree - 1 keys.
-            assert(len(self.keys) <= 2 * self.minimum_degree - 1)
+        return True
+    
+    def __str__(self):
+        values = ["Node"] * len(self.values) if type(self.values[0]) is Node else self.values
+        return f"Node(minimum_degree={self.minimum_degree}, keys={self.keys}, values={values})"
 
-            # keys must be in non-decreasing order
-            for i in range(1, len(self.keys)):
-                assert(self.keys[i - 1] <= self.keys[i])
-
-            return True
-        except AssertionError:
-            return False
         
 
 class TestNode(unittest.TestCase):
@@ -81,9 +83,10 @@ class TestNode(unittest.TestCase):
     def test_is_maintained_invalid_leaf_node(self):
         node = Node(minimum_degree=2, is_leaf=True)
         node.keys = [1, 2]
-        node.values = [10]  # len(values) != len(keys) + 1
+        node.values = [10]  # len(values) != len(keys)
 
-        self.assertFalse(node.is_maintained(is_root=False))
+        with self.assertRaises(LeafNodeValueError):
+            node.is_maintained(is_root=False)
 
     def test_is_maintained_invalid_internal_node(self):
         child_node = Node(minimum_degree=2, is_leaf=True)
@@ -91,16 +94,16 @@ class TestNode(unittest.TestCase):
         node.keys = []
         node.values = [child_node]
 
-        # Invalid because minimum_degree - 1 is not met
-        self.assertFalse(node.is_maintained(is_root=False))
+        with self.assertRaises(NonRootNodeKeyCountError):
+            node.is_maintained(is_root=False)
 
     def test_keys_order(self):
-        # Test a node with non-decreasing order
         node = Node(minimum_degree=2, is_leaf=False)
         node.keys = [1, 3, 2]  # This should be an invalid case
         node.values = [Node()] * 4
 
-        self.assertFalse(node.is_maintained(is_root=False))
+        with self.assertRaises(NonDecreasingOrderError):
+            node.is_maintained(is_root=False)
 
     def test_keys_within_limits(self):
         node = Node(minimum_degree=2, is_leaf=False)
@@ -109,9 +112,9 @@ class TestNode(unittest.TestCase):
 
         self.assertTrue(node.is_maintained(is_root=False))
 
-        # Test exceeding maximum keys
         node.keys = list(range(1, 10))  # 9 keys, invalid if minimum_degree is 5
-        self.assertFalse(node.is_maintained(is_root=False))
+        with self.assertRaises(MaxKeysExceededError):
+            node.is_maintained(is_root=False)
 
         
 
@@ -150,14 +153,19 @@ class BPlusTree:
 
     def is_maintained(self):
         if not self.root.is_maintained(is_root=True):
+            print("root node is not maintained")
             return False
         
         # Check if all leaves are at the same height
         leaf_height = self._check_leaves_height(self.root, 0)
-        return leaf_height is not None
+        if leaf_height is None:
+            print("Leaf height is not balanced")
+            return False
+        return True
 
     def _check_leaves_height(self, node: Node, current_height: int):
         if not node.is_maintained(is_root=(current_height == 0)):
+            print(f"Node with keys {node.keys} is not maintained")
             return None
         
         if node.is_leaf:
@@ -340,14 +348,54 @@ class TestBPlusTree(unittest.TestCase):
     def setUp(self):
         self.tree = BPlusTree(minimum_degree=2)
 
+    # I used https://www.cs.usfca.edu/~galles/visualization/BPlusTree.html to help me design this. -Kai
     def test_tree_is_maintained(self):
-        self.tree.keys = [5, 10]
-        self.tree.values = [Node(2), Node(2), Node(2)]
-        self.tree.values[0].keys = [2]
-        self.tree.values[0].values = [Node(2, True), Node(2, True)]
-        self.tree.values[1].keys = [7]
-        self.tree.values[1].values = [Node(2, True), Node(2, True)]
-        self.tree.values[2].keys = [12]
-        self.tree.values[2].values = [Node(2, True), Node(2, True)]
+        # Root Node
+        self.tree.root.keys = [7]
+        
+        # Internal Nodes
+        internal1 = Node(2, False)
+        internal2 = Node(2, False)
+        self.tree.root.values = [internal1, internal2]
+        
+        # Leaf Nodes
+        leaf11 = Node(2, True)
+        leaf12 = Node(2, True)
+        leaf13 = Node(2, True)
+
+        leaf21 = Node(2, True)
+        leaf22 = Node(2, True)
+
+        internal1.keys = [3, 5]
+        internal1.values = [leaf11, leaf12, leaf13]
+
+        internal2.keys = [9]
+        internal2.values = [leaf21, leaf22]
+
+        # Leaf Node values
+        leaf11.keys = [1, 2]
+        leaf11.values = [1, 2]
+
+        leaf12.keys = [3, 4]
+        leaf12.values = [3, 4]
+
+        leaf13.keys = [5, 6]
+        leaf13.values = [5, 6]
+
+        leaf21.keys = [7, 8]
+        leaf21.values = [7, 8]
+
+        leaf22.keys = [9, 10]
+        leaf22.values = [9, 10]
 
         self.assertTrue(self.tree.is_maintained())
+
+    def test_generated_tree_is_maintained(self):
+        tree = self.tree
+        for i in range(1, 11):
+            tree.insert(i, i)
+
+        self.assertTrue(self.tree.is_maintained())
+        
+        
+
