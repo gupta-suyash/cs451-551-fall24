@@ -25,6 +25,12 @@ class PageKeyError(Exception):
         self.message = message
         super().__init__(self.message)
 
+class ColumnDoesNotExist(Exception):
+    def __init__(self,column_index, num_columns):
+        self.column_index = column_index
+        self.num_columns = num_columns
+        super().__init__(f'Column index {self.column_index} does not exist, table has {self.num_columns} columns')
+
 """B+TREE ERRORS"""
 # bptree_exceptions.py
 

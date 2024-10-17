@@ -12,6 +12,7 @@ class Config:
     b_plus_tree_minimum_degree = 2**7   # 2**6 to 2**7 for fast insert. 2**8 to 2**9 for fast range query
     b_plus_tree_search_algorithm_threshold = 10 # Switch between a linear scan and binary search in b+ tree at this value. Might improve performance.
     lstore_is_cumulative = False
+    column_data_offset = 4
 
     # Best time to insert 100_000 random items into a b+ tree with minimum_degree.
     # 200 1.5865

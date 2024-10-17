@@ -11,6 +11,8 @@ the periodical merge of its corresponding page ranges.
 from lstore.index import Index
 from time import time
 from lstore.page import Page
+from errors import ColumnDoesNotExist
+from config import Config
 
 INDIRECTION_COLUMN = 0
 RID_COLUMN = 1
@@ -32,21 +34,23 @@ class Table:
     :param num_columns: int     #Number of Columns: all columns are integer
     :param key: int             #Index of table key in columns
     """
-    def __init__(self, name, num_columns, key):
+    def __init__(self, name, num_columns, primary_key):
         self.name = name
-        self.key = key
+        self.key = primary_key + Config.column_data_offset
         self.num_columns = num_columns
-        self.page_directory = {}
+        self.page_directory = []
         self.index = Index(self)
 
         # Very rough implementaion of base and tail coupling, consider changing later
-        for i in range(num_columns):
-            self.page_directory[i] = [Page(), Page()]
 
-        self.page_directory['RID'] = [Page(), Page()]
-        self.page_directory['inderection'] = [Page(), Page()]
-        self.page_directory['schema'] = [Page(), Page()]
+        for i in range(0, num_columns+4):
+            self.page_directory.append({'Base':[Page()], 'Tail':[Page()]})
+
         
+    def get_column(self, column_index):
+        if column_index >= self.num_columns or column_index < 0:
+            raise ColumnDoesNotExist
+        return self.page_directory[column_index]
 
     def __merge(self):
         print("merge is happening")
