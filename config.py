@@ -8,11 +8,22 @@ from data_structures.binary_search_tree import BSTree
 class Config:
     page_size = 2**12    #4KB
     page_cell_size = 8   # Thats what the adssignment description said.
-    index_data_structure = BSTree     # Make sure this datastructure- 1: works  2: impliments get(key), get_range(low_key, high_key), insert(key, value)
-    b_plus_tree_minimum_degree = 2**7   #128
+    index_data_structure = BSTree     # Make sure this class passes test_data_structure_correctness(), and does well on it.
+    b_plus_tree_minimum_degree = 2**7   # 2**6 to 2**7 for fast insert. 2**8 to 2**9 for fast range query
     b_plus_tree_search_algorithm_threshold = 10 # Switch between a linear scan and binary search in b+ tree at this value. Might improve performance.
     lstore_is_cumulative = False
 
+    # Best time to insert 100_000 random items into a b+ tree with minimum_degree.
+    # 200 1.5865
+    # 150 1.5878
+    # 128 1.5161
+    # 100 1.5156
+    # 64  1.5255
+
+    #                     HashMap  B+Tree
+    # Insert 1_000_000   3x faster
+    # Get 1_000_000     16x faster
+    # Get range 1_000             100x faster
 
     @staticmethod
     def display_config():
