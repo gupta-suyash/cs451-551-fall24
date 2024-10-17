@@ -168,7 +168,7 @@ from data_structures.b_plus_tree import BPlusTree, TestBPlusTree
 unittest.main()
 
 
-# test_data_structure_insert_speed(BPlusTree, 500_000)
+test_data_structure_correctness(BPlusTree, 500_000)
 # test_data_structure_insert_speed(BSTree, 500_000)
 # test_data_structure_insert_speed(HashMap, 500_000)
 
@@ -180,5 +180,10 @@ names.insert("Frodo", "Baggins")
 names.insert("Paul", "Atrades")
 names.insert("Luke", "Skywalker")
 names.insert("Thanos", None)
+names.insert("", "hello")
 
-print(names.get("Kai"))
+print(names.get("Joe"))
+print(names.minimum())
+print(names.maximum())
+print(names.contains_key("Thanos"))
+print(names.contains_key("thanos"))

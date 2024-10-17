@@ -8,6 +8,7 @@ class Node:
         assert(minimum_degree >= 2)
         self.minimum_degree = minimum_degree
         self.is_leaf: bool = is_leaf
+        self.link = None    # Should be none unless a leaf.
         
         self.keys = []
         self.values = []
@@ -233,10 +234,12 @@ class BPlusTree:
         mid_index = self.minimum_degree
         new_leaf.keys = leaf_node.keys[mid_index:]
         new_leaf.values = leaf_node.values[mid_index:]
+        new_leaf.link = leaf_node.link
 
         # Update the original leaf node
         leaf_node.keys = leaf_node.keys[:mid_index]
         leaf_node.values = leaf_node.values[:mid_index]
+        leaf_node.link = new_leaf
 
         # If the leaf is the root, create a new root
         if leaf_node == self.root:
@@ -309,6 +312,18 @@ class BPlusTree:
         return binary_search(keys, key)
     
     def get(self, key):
+        node = self._get_leaf(key)
+        if node is None:
+            return node
+
+        index = self._find_key_index(node.keys, key)
+
+        if index < len(node.keys) and key == node.keys[index]:
+            return node.values[index]
+        
+        return None
+    
+    def _get_leaf(self, key):
         node = self.root
 
         if len(node.keys) == 0:
@@ -322,28 +337,39 @@ class BPlusTree:
             else:
                 node = node.values[index + 1]
 
+        return node
+
+
+    # Cannot do return self.get(key) is not None because the value itself could be None.
+    def contains_key(self, key) -> bool:
+        node = self._get_leaf(key)
+        if node is None:
+            return False
+
         index = self._find_key_index(node.keys, key)
 
         if index < len(node.keys) and key == node.keys[index]:
-            return node.values[index]
+            return True
         
-        return None
-
-
-    # TODO: impliment each of these
-    def contains_key(self, key) -> bool:
-        return True if self.get(key) else False
+        return False
     
 
-    def minimum(self) -> Node:
+    def minimum(self):
+        minimum_node = self._minimum_node()
+        if minimum_node is None:
+            return None
+        
+        return minimum_node.values[0]
+    
+    def _minimum_node(self) -> Node:
         node = self.root
         if len(node.keys) == 0:
             return None
-
+        
         while not node.is_leaf:
             node = node.values[0]
 
-        return node.values[0]
+        return node
 
     def maximum(self) -> Node:
         node = self.root
@@ -363,11 +389,38 @@ class BPlusTree:
     def len(self):
         return self.length
 
+    """Iterator over leaf keys"""
     def keys(self):
-        raise NotImplementedError
+        leaf = self._minimum_node()
+        if leaf is None:
+            return
+        
+        while leaf is not None:
+            for key in leaf.keys:
+                yield key
+            leaf = leaf.link
 
+    """Iterator over leaf values"""
     def values(self):
-        raise NotImplementedError
+        leaf = self._minimum_node()
+        if leaf is None:
+            return
+        
+        while leaf is not None:
+            for value in leaf.values:
+                yield value
+            leaf = leaf.link
+
+    """Iterator over leaf key value pairs"""
+    def items(self):
+        leaf = self._minimum_node()
+        if leaf is None:
+            return None
+        
+        while leaf is not None:
+            for i in range(len(leaf.keys)):
+                yield (leaf.keys[i], leaf.values[i])
+            leaf = leaf.link
 
     def __eq__(self, other_tree):
         return self._compare_nodes(self.root, other_tree.root)
@@ -380,7 +433,6 @@ class BPlusTree:
             return False
 
         if node1.keys != node2.keys:
-            print(f"keys{node1.keys} != keys{node2.keys}")
             return False
 
         # If both nodes are internal, compare their children
@@ -465,7 +517,7 @@ class TestBPlusTree(unittest.TestCase):
             tree.insert(i, i)
 
         for i in range(1, 11):
-            print(tree.get(i))
+            self.assertEqual(tree.get(i), i)
 
 
         tree2 = self.make_generic_tree()
@@ -512,8 +564,25 @@ class TestBPlusTree(unittest.TestCase):
         for i in range(10):
             tree.insert(i, i)
 
-        print(tree.root)
-        for keys in tree.root.values[0].values:
-            print(keys)       
+
+    def test_valid_leaf_link(self):
+        tree = self.tree
+        for i in range(100):
+            message = ""
+            if i % 3 == 0:
+                message += "fizz"
+            if i % 5 == 0:
+                message += "buzz"
+            tree.insert(i, message)
+
+        leaf = tree._minimum_node() 
+
+        while leaf.link is not None:
+            leaf = leaf.link
+
+        self.assertEqual(leaf.values[-1], tree.maximum())
+
+        for key, value in tree.items():
+            print(f"key: {key}        value: {value}")
 
         
