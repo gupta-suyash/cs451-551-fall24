@@ -353,7 +353,10 @@ class BPlusTree:
             index = 0
 
         while leaf:
-            while index < len(leaf.keys) and leaf.keys[index] <= high_key:
+            while index < len(leaf.keys):
+                if high_key and leaf.keys[index] > high_key:
+                    break
+
                 result.append((leaf.keys[index], leaf.values[index]))
                 index += 1
             leaf = leaf.link
@@ -637,12 +640,24 @@ class TestBPlusTree(unittest.TestCase):
         self.assertEqual(self.tree.maximum(), (999, 999))
 
         
-    def test_get_range(self):
+    def test_get_range_1(self):
         tree = self.tree
         for i in range(100):
-            tree.insert(i, i / 100)
+            tree.insert(i, None)
 
-        print(tree.get_range(None, 9.99))
+        self.assertEqual(tree.get_range(10, 15.5), [(10, None), (11, None), (12, None), (13, None), (14, None), (15, None)])
 
+    def test_get_range_2(self):
+        tree = self.tree
+        for i in range(100):
+            tree.insert(i, None)
 
-        
+        self.assertEqual(tree.get_range(None, 4), [(0, None), (1, None), (2, None), (3, None), (4, None)])
+
+    def test_get_range_3(self):
+        tree = self.tree
+        for i in range(100):
+            tree.insert(i, None)
+
+        self.assertEqual(tree.get_range(97, None), [(97, None), (98, None), (99, None)])
+
