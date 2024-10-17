@@ -45,6 +45,7 @@ class Table:
 
         self.page_directory['RID'] = [Page(), Page()]
         self.page_directory['inderection'] = [Page(), Page()]
+        self.page_directory['schema'] = [Page(), Page()]
         
 
     def __merge(self):
