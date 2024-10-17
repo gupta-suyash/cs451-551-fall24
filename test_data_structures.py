@@ -83,7 +83,7 @@ def test_data_structure_insert_speed(DataStructure, operations):
 
     for i in range(operations):
         key = random()
-        value = []
+        value = transform_number(key)
         data_structure.insert(key, value)
 
     return data_structure
@@ -203,10 +203,8 @@ from utilities.algorithms import TestAlgorithms
 from data_structures.b_plus_tree import TestNode as TestBPlusNode
 from data_structures.b_plus_tree import BPlusTree, TestBPlusTree
 
-# unittest.main()
+unittest.main()
 
-
-# tree = test_data_structure_get_speed(BPlusTree, 1_000_000)
 # map = test_data_structure_get_speed(HashMap, 1_000_000)
 
 
