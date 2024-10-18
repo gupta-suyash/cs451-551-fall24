@@ -227,6 +227,10 @@ class BPlusTree:
         if len(node.keys) == 2 * self.minimum_degree:
             self._split_leaf_node(node, path)
 
+    # Not using for now becuase self[key] = value always inserts a value, never updates a value.
+    # def __setitem__(self, key, value):
+    #    self.insert(key, value)
+
     def _split_leaf_node(self, leaf_node, path):
         new_leaf = Node(self.minimum_degree, is_leaf=True)
         
@@ -311,6 +315,10 @@ class BPlusTree:
             return linear_search(keys, key)
         return binary_search(keys, key)
     
+    # TODO: pretty sure that this should throw KeyError if self.get(key) doesn't return anything. However, a value is allowed to be None, so I don't know what to do!
+    def __getitem__(self, key):
+        return self.get(key)
+    
     def get(self, key):
         """
         If self.unique_keys, returns a single value.
@@ -387,10 +395,11 @@ class BPlusTree:
                 node = node.values[index + 1]
 
         return node
+    
 
 
     # Cannot do return self.get(key) is not None because the value itself could be None.
-    def contains_key(self, key) -> bool:
+    def __contains__(self, key) -> bool:
         node = self._get_leaf(key)
         if node is None:
             return False
@@ -678,5 +687,15 @@ class TestBPlusTree(unittest.TestCase):
             else:
                 tree.insert(random(), i)
         self.assertEqual(sorted(tree.get(0)), [0, 10, 20, 30, 40])
+
+    def test_in_operator(self):
+        tree = self.tree
+        for i in range(1000):
+            if i == 42:
+                continue
+
+            tree.insert(i, i ^ 10)
         
+        self.assertFalse(42 in tree)
+        self.assertTrue(10 in tree)
 

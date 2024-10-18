@@ -203,7 +203,7 @@ from utilities.algorithms import TestAlgorithms
 from data_structures.b_plus_tree import TestNode as TestBPlusNode
 from data_structures.b_plus_tree import BPlusTree, TestBPlusTree
 
-unittest.main()
+# unittest.main()
 
 # map = test_data_structure_get_speed(HashMap, 1_000_000)
 
@@ -213,9 +213,10 @@ unittest.main()
 # test_data_structure_insert_speed(HashMap, 500_000)
 
 
-map = BPlusTree(unique_keys=True)
-for i in range(5):
-    # for j in range(5 - i):
-    map.insert(i, i)
-    
-print(map.get(0))
+map = BPlusTree(unique_keys=False)
+
+for i in range(10):
+    map.insert(i, i * i)
+
+print(map[0])
+

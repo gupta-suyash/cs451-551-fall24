@@ -89,3 +89,7 @@ class UnbalancedTreeError(BPlusTreeError):
 class NonUniqueKeyError(BPlusTreeError):
     def __init__(self, key):
         super().__init__(f"Attempted to insert the existing key {key} in B+ Tree Unique Key Mode")
+
+class KeyError(BPlusTreeError):
+    def __init__(self, key):
+        super().__init__(f"{key}")
