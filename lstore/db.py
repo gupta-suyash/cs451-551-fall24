@@ -52,6 +52,8 @@ class Database():
         table = Table(name, num_columns, key_index)
         self.tables[name] = table
 
+        return table
+
     
     def drop_table(self, name):
         """Deletes the specified table
