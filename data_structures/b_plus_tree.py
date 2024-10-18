@@ -354,7 +354,7 @@ class BPlusTree:
 
         while leaf:
             while index < len(leaf.keys):
-                if high_key and leaf.keys[index] > high_key:
+                if high_key is not None and leaf.keys[index] > high_key:
                     break
 
                 result.append((leaf.keys[index], leaf.values[index]))
