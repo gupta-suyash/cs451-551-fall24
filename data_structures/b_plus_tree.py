@@ -312,6 +312,13 @@ class BPlusTree:
         return binary_search(keys, key)
     
     def get(self, key):
+        """
+        If self.unique_keys, returns a single value.
+        If not self.unique_keys, returns a list of values. Values in no particular order.
+        """
+        if not self.unique_keys:
+            return [value for key, value in self.get_range(key, key)]
+
         node = self._get_leaf(key)
         if node is None:
             return node
@@ -395,7 +402,7 @@ class BPlusTree:
         
         return False
     
-
+    
     def minimum(self):
         minimum_node = self._minimum_leaf()
         if minimum_node is None:
@@ -559,7 +566,7 @@ class TestBPlusTree(unittest.TestCase):
             tree.insert(i, i)
 
         for i in range(1, 11):
-            self.assertEqual(tree.get(i), i)
+            self.assertEqual(tree.get(i), [i])
 
 
         tree2 = self.make_generic_tree()
@@ -660,4 +667,16 @@ class TestBPlusTree(unittest.TestCase):
             tree.insert(i, None)
 
         self.assertEqual(tree.get_range(97, None), [(97, None), (98, None), (99, None)])
+
+    def test_get_duplicates(self):
+        from random import random
+        tree = self.tree
+        tree.unique_keys = False
+        for i in range(50):
+            if i % 10 == 0:
+                tree.insert(0, i)
+            else:
+                tree.insert(random(), i)
+        self.assertEqual(sorted(tree.get(0)), [0, 10, 20, 30, 40])
+        
 

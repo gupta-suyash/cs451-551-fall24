@@ -211,3 +211,11 @@ unittest.main()
 # print(map.get_range(0, 0.00001))
 # test_data_structure_insert_speed(BSTree, 500_000)
 # test_data_structure_insert_speed(HashMap, 500_000)
+
+
+map = BPlusTree(unique_keys=True)
+for i in range(5):
+    # for j in range(5 - i):
+    map.insert(i, i)
+    
+print(map.get(0))

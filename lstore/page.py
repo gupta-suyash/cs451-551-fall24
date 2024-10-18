@@ -47,7 +47,7 @@ class Page:
 
     def read(self, cell_number: int) -> bytes:
         if cell_number >= self.num_cells or cell_number < 0:
-            raise PageKeyError
+            raise PageKeyError(cell_number)
 
         start_index = self.__locate(cell_number)
         return self.data[start_index:start_index + self.cell_size]
