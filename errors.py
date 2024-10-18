@@ -16,13 +16,13 @@ class PageNoCapacityError(Exception):
         super().__init__(self.message)
 
 class PageValueTooLargeError(Exception):
-    def __init__(self, message="value size is larger than the page cell size"):
-        self.message = message
+    def __init__(self, cell_size, value_thats_too_large):
+        self.message = f"The value `{value_thats_too_large}` is too large for a {cell_size} byte page cell"
         super().__init__(self.message)
 
 class PageKeyError(Exception):
-    def __init__(self, message="key points to an invalid page location"):
-        self.message = message
+    def __init__(self, key):
+        self.message = "key `{key}` points to an uninitialized or invalid page location"
         super().__init__(self.message)
 
 class ColumnDoesNotExist(Exception):

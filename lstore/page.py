@@ -35,7 +35,7 @@ class Page:
             raise PageNoCapacityError
 
         if len(value) > self.cell_size:      # Consider if this should be len(value) != self.cell_size instead
-            raise PageValueTooLargeError
+            raise PageValueTooLargeError(self.cell_size, value)
         
         padding_len = self.cell_size - len(value)   # Ensures value is exactly self.cell_size bytes long.
         value += (b"\x00" * padding_len)            # Prevents a really nasty bug.

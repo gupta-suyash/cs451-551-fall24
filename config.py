@@ -11,7 +11,7 @@ class Config:
     index_data_structure = BSTree     # Make sure this class passes test_data_structure_correctness(), and does well on it.
     b_plus_tree_minimum_degree = 2**7   # 2**6 to 2**7 for fast insert. 2**8 to 2**9 for fast range query
     b_plus_tree_search_algorithm_threshold = 10 # Switch between a linear scan and binary search in b+ tree at this value. Might improve performance.
-    lstore_is_cumulative = False
+    lstore_is_cumulative = False    # Paper mentions there are two ways to do this.
     column_data_offset = 4
 
     # Best time to insert 100_000 random items into a b+ tree with minimum_degree.
@@ -36,3 +36,5 @@ class Config:
         print(f"Index data structure: {Config.index_data_structure.__name__}")
         print(f"B+ Tree minimum degree: {Config.b_plus_tree_minimum_degree}")
         print(f"L-Store is Cumulative: {Config.lstore_is_cumulative}")
+
+        
