@@ -9,6 +9,7 @@ and the constant values used in the code. It is good practice to organize such i
 Singleton object accessible from every file in the project. This class will find more use when 
 implementing persistence in the next milestone.
 """
+from sys import getsizeof
 from config import Config
 from errors import PageNoCapacityError, PageValueTooLargeError, PageKeyError
 
@@ -24,7 +25,6 @@ class Page:
     def __locate(self, cell_number):
         index = self.cell_size * cell_number
         return index
-        
 
     def has_capacity(self):
         has_capacity = len(self.data) >= (self.num_cells + 1) * self.cell_size
@@ -34,15 +34,19 @@ class Page:
         if not self.has_capacity():
             raise PageNoCapacityError
 
-        if len(value) > self.cell_size:      # Consider if this should be len(value) != self.cell_size instead
+
+        '''
+        if getsizeof(value) > self.cell_size:      # Consider if this should be len(value) != self.cell_size instead
             raise PageValueTooLargeError(self.cell_size, value)
         
-        padding_len = self.cell_size - len(value)   # Ensures value is exactly self.cell_size bytes long.
+        padding_len = self.cell_size - (getsizeof(value) - 24)   # Ensures value is exactly self.cell_size bytes long.
         value += (b"\x00" * padding_len)            # Prevents a really nasty bug.
+        '''
         
         start_index = self.__locate(self.num_cells)
         end_index = start_index + self.cell_size
-        self.data[start_index:end_index] = value
+        # changed so that the value is converted to bytes before trying to write it
+        self.data[start_index:end_index] = value.to_bytes(8)
         self.num_cells += 1
 
     def read(self, cell_number: int) -> bytes:
@@ -50,11 +54,14 @@ class Page:
             raise PageKeyError(cell_number)
 
         start_index = self.__locate(cell_number)
-        return self.data[start_index:start_index + self.cell_size]
+        # changed from just returning the sliced sef.data to int.from_bytes()
+        value = int.from_bytes(self.data[start_index:start_index + self.cell_size])
+        return value
     
     def print(self, start_cell, end_cell):
         start_index = self.__locate(start_cell)
         end_index = self.__locate(end_cell) + self.cell_size
+        # at the moment I believe this will be printing bits
         print(repr(self.data[start_index:end_index]))
 
 

@@ -51,9 +51,9 @@ class Query:
         page_inderection = self.table.get_column(0)['Base'][0]
 
         rid = 'b' + str(page_rid.num_cells + 1)
-        page_rid.write(rid)
-        page_schema(schema_encoding)
-        page_inderection.write(None)
+        #page_rid.write(rid)
+        #page_schema(schema_encoding)
+        #page_inderection.write(None)
         
         for i in range(self.table.num_columns):
             page = self.table.get_column(i + Config.column_data_offset)['Base'][0]

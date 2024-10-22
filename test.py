@@ -1,12 +1,20 @@
 from lstore.db import Database
 from lstore.query import Query
+from lstore.page import Page
+from sys import getsizeof
 
-db = Database()
+test = Page()
 
-grades_table = db.create_table('Grades', 5, 0)
 
-query = Query(grades_table)
+test.write(8)
+print(test.read(0))
 
-print(type(query.table))
+'''
+byte_arr = bytearray()
+value=26
+byte_rep = value.to_bytes(8)
 
-query.insert(*[0,1,2,3,4])
+byte_arr[0:8] = byte_rep
+
+print(int.from_bytes(byte_arr[0:8]))
+'''
