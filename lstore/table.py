@@ -29,14 +29,36 @@ class Record:
 
 class Table:
 
-    """
-    :param name: string         #Table name
-    :param num_columns: int     #Number of Columns: all columns are integer
-    :param key: int             #Index of table key in columns
-    """
-    def __init__(self, name, num_columns, primary_key):
+    def __init__(self, name, num_columns, key):
+        """Initialize a Table
+
+        Parameters
+        ----------
+        name: string
+            The name of the table
+        num_columns: int
+            The total number of columns to store in the table
+        key: int
+            The index of the column to use as the primary key
+        
+        Raises
+        ------
+
+        """
+
+        # Validate that the primary key column is within the range of columns
+        if (key >= num_columns):
+            # TODO: Raise an error since this should not be possible
+            pass
+
+        # Validate that the total number of columns is greater than 0
+        if (num_columns <= 0):
+            # TODO: Raise an error
+            pass
+
+        # Set internal state
         self.name = name
-        self.key = primary_key + Config.column_data_offset
+        self.key = key + Config.column_data_offset
         self.num_columns = num_columns
         self.page_directory = []
         self.index = Index(self)
@@ -46,9 +68,53 @@ class Table:
         for i in range(0, num_columns+4):
             self.page_directory.append({'Base':[Page()], 'Tail':[Page()]})
 
+    def __contains__(self, key):
+        """Implements the contains operator
+        
+        Parameters
+        ----------
+        key : int
+            The primary key to find within the table
+        
+        Returns
+        -------
+        b : bool
+            Whether or not the primary key was found
+        """
+
+        # Search through the primary key column and try to find it
+        v = self.index.locate(self.key, key)  # TODO: double check this is the correct column
+        return (v is not None)
+
+    def __getitem__(self, key):
+        """Implements the get operator
+
+        Parameters
+        ----------
+        key : int
+            The primary key to find within the table
+
+        Returns
+        -------
+        r : Record
+            The found Record object
+
+        Raises
+        ------
+        IndexError
+        """
+
+        #if (key in self):
+        #    return self.index.locate(self.key)
+        #else:
+        #    raise IndexError("Key {} does not exist.".format(key))
+
+        # Use the internal Index to find a record
+        return self.index.locate(self.key, key)
+
         
     def get_column(self, column_index):
-        if column_index >= self.num_columns or column_index < 0:
+        if (column_index >= self.num_columns) or (column_index < 0):
             raise ColumnDoesNotExist
         return self.page_directory[column_index]
 

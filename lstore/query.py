@@ -33,7 +33,14 @@ class Query:
     # Return False if record doesn't exist or is locked due to 2PL
     """
     def delete(self, primary_key):
-        pass
+        # Check if the requested primary key exists in the current table
+        if (primary_key in self.table):
+            # TODO: Eventually check for LOCK state
+
+            # TODO: Set the deletion flag on the specified record
+            pass
+        else:
+            return False
     
     
     """
