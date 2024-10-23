@@ -14,11 +14,6 @@ from lstore.page import Page
 from errors import ColumnDoesNotExist
 from config import Config
 
-INDIRECTION_COLUMN = 0
-RID_COLUMN = 1
-TIMESTAMP_COLUMN = 2
-SCHEMA_ENCODING_COLUMN = 3
-
 
 class Record:
 
@@ -37,19 +32,19 @@ class Table:
     def __init__(self, name, num_columns, primary_key):
         self.name = name
         self.key = primary_key + Config.column_data_offset
-        self.num_columns = num_columns
+        self.num_columns = num_columns + Config.column_data_offset
         self.page_directory = []
         self.index = Index(self)
 
         # Very rough implementaion of base and tail coupling, consider changing later
 
-        for i in range(0, num_columns+4):
+        for i in range(0, num_columns + Config.column_data_offset):
             self.page_directory.append({'Base':[Page()], 'Tail':[Page()]})
 
         
     def get_column(self, column_index):
         if column_index >= self.num_columns or column_index < 0:
-            raise ColumnDoesNotExist
+            raise ColumnDoesNotExist(column_index, self.num_columns)
         return self.page_directory[column_index]
 
     def __merge(self):
