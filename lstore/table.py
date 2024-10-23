@@ -24,7 +24,7 @@ class Record:
 
 class Table:
 
-    def __init__(self, name, num_columns, key):
+    def __init__(self, name, num_columns, primary_key):
         """Initialize a Table
 
         Parameters
@@ -42,7 +42,7 @@ class Table:
         """
 
         # Validate that the primary key column is within the range of columns
-        if (key >= num_columns):
+        if (primary_key >= num_columns):
             # TODO: Raise an error since this should not be possible
             pass
 
@@ -114,6 +114,11 @@ class Table:
         if column_index >= self.num_columns or column_index < 0:
             raise ColumnDoesNotExist(column_index, self.num_columns)
         return self.page_directory[column_index]
+    
+    def add_base_page(self, column_index):
+        if column_index >= self.num_columns or column_index < 0:
+            raise ColumnDoesNotExist(column_index, self.num_columns)
+        self.page_directory[column_index]['Base'].append(Page())
 
     def __merge(self):
         print("merge is happening")

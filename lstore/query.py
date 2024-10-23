@@ -11,6 +11,7 @@ than parsing SQL queries.
 
 from lstore.table import Table, Record
 from lstore.index import Index
+from lstore.page import Page
 from config import Config
 
 def create_bitmask(items):
@@ -27,7 +28,7 @@ class Query:
     Queries that succeed should return the result or True
     Any query that crashes (due to exceptions) should return False
     """
-    def __init__(self, table):
+    def __init__(self, table : Table):
         self.table = table
         pass
 
@@ -58,19 +59,38 @@ class Query:
         # as is, this SHOULD insert a new record, however, this needs to be tested first
 
         # in general we should return the whole column, not just the first page TODO: fix this
-        page_rid = self.table.get_column(Config.rid_column_idx)['Base'][0]
-        page_schema = self.table.get_column(Config.schema_encoding_column_idx)['Base'][0]
-        page_indirection = self.table.get_column(Config.indirection_column_idx)['Base'][0]
 
-        rid = page_rid.num_cells
-        page_rid.write(rid)
+        # for each column: if the last base page is at full capacity -> add a new base page
+
+        pages = []
+
+        for column_id in range(self.table.num_columns):
+            column_page = self.table.get_column(column_id)['Base'][-1]
+            if not column_page.has_capacity(): 
+                self.table.add_base_page(column_id)
+                column_page = self.table.get_column(column_id)['Base'][-1]
+            pages.append(column_page)
+
+        page_rid = pages[Config.rid_column_idx]
+        page_schema = pages[Config.schema_encoding_column_idx]
+        page_indirection = pages[Config.indirection_column_idx]
+
+        full_pages_count = len(self.table.get_column(Config.rid_column_idx)) - 1
+
+        new_rid = full_pages_count * 512 + page_rid.num_cells # need to be more complex if we use variable types
+
+        # id of new record
+        page_rid.write(new_rid)
+
+        # 0 bit mask, because new record hasn't got any updates to mark in schema
         page_schema.write(0)
-        # let zero correspond to null pointer
+
+        # let zero be default value
         page_indirection.write(0)
         
+        # filling out non-meta columns
         for i in range(len(columns)):
-            page = self.table.get_column(i + Config.column_data_offset)['Base'][0]
-            page.write(columns[i])
+            pages[i + Config.column_data_offset].write(columns[i])
 
     
     """
@@ -107,7 +127,36 @@ class Query:
         #   for _ in range(relative_version)
         #       go to the previous version of the record using pointer to prev version
 
-        pass
+        # dumb rid search for now TODO: Add search of rid's using the index
+        
+        # first find all the relevant rids:
+        search_column = self.table.get_column(search_key_index + Config.column_data_offset)
+
+        relevant_rids = []
+
+        for page_num, page in enumerate(search_column['Base']):
+            for cell_id in range(page.num_cells):
+                if page.read(cell_id) == search_key:
+                    relevant_rids.append(page_num * 512 + cell_id) # TODO: change if we have variable data types
+        
+
+        records = []
+
+        for rid in relevant_rids:
+            res_columns = []
+            for column_id in range(len(projected_columns_index)):
+                if projected_columns_index[column_id]:
+                    column = self.table.get_column(column_id + Config.column_data_offset)
+                    # determine the number of the page for the record TODO: change for variable data types
+                    page_num = rid // 512
+                    # find id of the record inside the page
+                    page_id = rid % 512
+
+                    res_columns.append(column['Base'][page_num].read(page_id))
+            records.append(Record(rid = rid, key = rid, columns=res_columns))
+
+        return records
+
 
 
     
