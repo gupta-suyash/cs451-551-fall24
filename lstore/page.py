@@ -14,7 +14,6 @@ from config import Config
 from errors import PageNoCapacityError, PageValueTooLargeError, PageKeyError
 
 class Page:
-    # DANIEL QUESTION why dont we inherit size of the column data type we are using as the cell_size?
     def __init__(self, page_size=Config.page_size, cell_size=Config.page_cell_size):
         self.num_cells = 0
         self.data = bytearray(page_size)
@@ -46,7 +45,7 @@ class Page:
         start_index = self.__locate(self.num_cells)
         end_index = start_index + self.cell_size
         # changed so that the value is converted to bytes before trying to write it
-        self.data[start_index:end_index] = value.to_bytes(8)
+        self.data[start_index:end_index] = value.to_bytes(8, Config.byteorder, signed=True)
         self.num_cells += 1
 
     def read(self, cell_number: int) -> bytes:
@@ -55,7 +54,7 @@ class Page:
 
         start_index = self.__locate(cell_number)
         # changed from just returning the sliced sef.data to int.from_bytes()
-        value = int.from_bytes(self.data[start_index:start_index + self.cell_size])
+        value = int.from_bytes(self.data[start_index:start_index + self.cell_size], byteorder=Config.byteorder, signed=True)
         return value
     
     def print(self, start_cell, end_cell):

@@ -13,6 +13,12 @@ from lstore.table import Table, Record
 from lstore.index import Index
 from config import Config
 
+def create_bitmask(items):
+    """Creates a bitmask representing the given items."""
+    mask = 0
+    for item in items:
+        mask |= (1 << item)
+    return mask
 
 class Query:
     """
@@ -44,19 +50,18 @@ class Query:
     def insert(self, *columns):
         # as is, this SHOULD insert a new record, however, this needs to be tested first
 
-        schema_encoding = '0' * self.table.num_columns
+        # in general we should return the whole column, not just the first page TODO: fix this
+        page_rid = self.table.get_column(Config.rid_column_idx)['Base'][0]
+        page_schema = self.table.get_column(Config.schema_encoding_column_idx)['Base'][0]
+        page_indirection = self.table.get_column(Config.indirection_column_idx)['Base'][0]
 
-        page_rid = self.table.get_column(1)['Base'][0]
-        page_schema = self.table.get_column(3)['Base'][0]
-        page_inderection = self.table.get_column(0)['Base'][0]
-
-        # DANIEL need to consider the case with many pages
-        rid = 'b' + str(page_rid.num_cells + 1)
-        #page_rid.write(rid)
-        #page_schema(schema_encoding)
-        #page_inderection.write(None)
+        rid = page_rid.num_cells
+        page_rid.write(rid)
+        page_schema.write(0)
+        # let zero correspond to null pointer
+        page_indirection.write(0)
         
-        for i in range(self.table.num_columns):
+        for i in range(len(columns)):
             page = self.table.get_column(i + Config.column_data_offset)['Base'][0]
             page.write(columns[i])
 
@@ -76,7 +81,7 @@ class Query:
     
     """
     # Read matching record with specified search key
-    # :param search_key: the value you want to search based on
+    # :param search_key: the value you want to search based on2
     # :param search_key_index: the column index you want to search based on
     # :param projected_columns_index: what columns to return. array of 1 or 0 values.
     # :param relative_version: the relative version of the record you need to retreive.
