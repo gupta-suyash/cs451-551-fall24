@@ -12,11 +12,11 @@ def timer(func):
             elif isinstance(a, int):
                 args_repr.append(f"{a:_}")  # Format integer with underscores
             else:
-                args_repr.append(repr(a))  # Default representation
+                pass    # This function could get really messy fast. Add on more instances if you please.
 
         kwargs_repr = [f"{k}={v:_r}" if isinstance(v, int) else f"{k}={v!r}" for k, v in kwargs.items()]
         
-        all_args = ", ".join(args_repr + kwargs_repr)  # Combine all
+        all_args = ", ".join(args_repr + kwargs_repr) # Combine all
         
         start_time = time.time()
         result = func(*args, **kwargs)

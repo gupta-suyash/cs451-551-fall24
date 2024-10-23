@@ -227,6 +227,10 @@ class BPlusTree:
         if len(node.keys) == 2 * self.minimum_degree:
             self._split_leaf_node(node, path)
 
+    # Not using for now becuase self[key] = value always inserts a value, never updates a value.
+    # def __setitem__(self, key, value):
+    #    self.insert(key, value)
+
     def _split_leaf_node(self, leaf_node, path):
         new_leaf = Node(self.minimum_degree, is_leaf=True)
         
@@ -311,7 +315,18 @@ class BPlusTree:
             return linear_search(keys, key)
         return binary_search(keys, key)
     
+    # TODO: pretty sure that this should throw KeyError if self.get(key) doesn't return anything. However, a value is allowed to be None, so I don't know what to do!
+    def __getitem__(self, key):
+        return self.get(key)
+    
     def get(self, key):
+        """
+        If self.unique_keys, returns a single value.
+        If not self.unique_keys, returns a list of values. Values in no particular order.
+        """
+        if not self.unique_keys:
+            return [value for key, value in self.get_range(key, key)]
+
         node = self._get_leaf(key)
         if node is None:
             return node
@@ -323,7 +338,49 @@ class BPlusTree:
         
         return None
     
-    def _get_leaf(self, key):
+    """
+    Get Range
+    Get all items with a key between low_key and high_key inclusive.
+    If low_key = None, there is no lower bound.
+    If high_key = None, there is no upper bound.
+    If both low_key and high_key are None, this function returns all of the items.
+
+    This function is arguably the b+trees greatest strength.
+    O(keys within range) as opposed to O(total keys)
+    """
+    def get_range(self, low_key=None, high_key=None):
+        result = []
+
+        if low_key:
+            leaf = self._get_leaf(low_key)
+            if leaf is None:
+                return result
+            index = self._find_key_index(leaf.keys, low_key)
+        else:
+            # If no low_key, start at the begining
+            leaf = self._minimum_leaf()
+            if leaf is None:
+                return result
+            index = 0
+            
+        if index >= len(leaf.keys):
+            leaf = leaf.link
+            index = 0
+
+        while leaf:
+            while index < len(leaf.keys):
+                if high_key is not None and leaf.keys[index] > high_key:
+                    break
+
+                result.append((leaf.keys[index], leaf.values[index]))
+                index += 1
+            leaf = leaf.link
+            index = 0
+
+        return result      
+
+
+    def _get_leaf(self, key) -> Node:
         node = self.root
 
         if len(node.keys) == 0:
@@ -338,10 +395,11 @@ class BPlusTree:
                 node = node.values[index + 1]
 
         return node
+    
 
 
     # Cannot do return self.get(key) is not None because the value itself could be None.
-    def contains_key(self, key) -> bool:
+    def __contains__(self, key) -> bool:
         node = self._get_leaf(key)
         if node is None:
             return False
@@ -353,15 +411,15 @@ class BPlusTree:
         
         return False
     
-
+    
     def minimum(self):
-        minimum_node = self._minimum_node()
+        minimum_node = self._minimum_leaf()
         if minimum_node is None:
             return None
         
-        return minimum_node.values[0]
+        return (minimum_node.keys[0], minimum_node.values[0])
     
-    def _minimum_node(self) -> Node:
+    def _minimum_leaf(self) -> Node:
         node = self.root
         if len(node.keys) == 0:
             return None
@@ -379,19 +437,19 @@ class BPlusTree:
         while not node.is_leaf:
             node = node.values[-1]
 
-        return node.values[-1]
+        return (node.keys[-1], node.values[-1])
 
     def remove(self, key):
         # self.length -= 1 if node is successfully removed
         # self.height may need to be adjusted
         raise NotImplementedError
 
-    def len(self):
+    def __len__(self):
         return self.length
 
     """Iterator over leaf keys"""
     def keys(self):
-        leaf = self._minimum_node()
+        leaf = self._minimum_leaf()
         if leaf is None:
             return
         
@@ -402,7 +460,7 @@ class BPlusTree:
 
     """Iterator over leaf values"""
     def values(self):
-        leaf = self._minimum_node()
+        leaf = self._minimum_leaf()
         if leaf is None:
             return
         
@@ -413,9 +471,9 @@ class BPlusTree:
 
     """Iterator over leaf key value pairs"""
     def items(self):
-        leaf = self._minimum_node()
+        leaf = self._minimum_leaf()
         if leaf is None:
-            return None
+            return
         
         while leaf is not None:
             for i in range(len(leaf.keys)):
@@ -517,7 +575,7 @@ class TestBPlusTree(unittest.TestCase):
             tree.insert(i, i)
 
         for i in range(1, 11):
-            self.assertEqual(tree.get(i), i)
+            self.assertEqual(tree.get(i), [i])
 
 
         tree2 = self.make_generic_tree()
@@ -567,7 +625,7 @@ class TestBPlusTree(unittest.TestCase):
 
     def test_valid_leaf_link(self):
         tree = self.tree
-        for i in range(100):
+        for i in range(101):
             message = ""
             if i % 3 == 0:
                 message += "fizz"
@@ -575,14 +633,69 @@ class TestBPlusTree(unittest.TestCase):
                 message += "buzz"
             tree.insert(i, message)
 
-        leaf = tree._minimum_node() 
+        leaf = tree._minimum_leaf() 
 
         while leaf.link is not None:
             leaf = leaf.link
 
-        self.assertEqual(leaf.values[-1], tree.maximum())
+        # The last value in the link should be the maximum value.
+        self.assertEqual((leaf.keys[-1], leaf.values[-1]), tree.maximum())
 
-        for key, value in tree.items():
-            print(f"key: {key}        value: {value}")
+        # The items iterator should contain as many items as are in the tree.
+        self.assertEqual(len(list(tree.items())), len(tree))
+
+    def test_min_and_max_item(self):
+        from random import shuffle
+        keys = [i for i in range(1_000)]
+        shuffle(keys)
+
+        for key in keys:
+            self.tree.insert(key, key)
+
+        self.assertEqual(self.tree.minimum(), (0, 0))
+        self.assertEqual(self.tree.maximum(), (999, 999))
 
         
+    def test_get_range_1(self):
+        tree = self.tree
+        for i in range(100):
+            tree.insert(i, None)
+
+        self.assertEqual(tree.get_range(10, 15.5), [(10, None), (11, None), (12, None), (13, None), (14, None), (15, None)])
+
+    def test_get_range_2(self):
+        tree = self.tree
+        for i in range(100):
+            tree.insert(i, None)
+
+        self.assertEqual(tree.get_range(None, 4), [(0, None), (1, None), (2, None), (3, None), (4, None)])
+
+    def test_get_range_3(self):
+        tree = self.tree
+        for i in range(100):
+            tree.insert(i, None)
+
+        self.assertEqual(tree.get_range(97, None), [(97, None), (98, None), (99, None)])
+
+    def test_get_duplicates(self):
+        from random import random
+        tree = self.tree
+        tree.unique_keys = False
+        for i in range(50):
+            if i % 10 == 0:
+                tree.insert(0, i)
+            else:
+                tree.insert(random(), i)
+        self.assertEqual(sorted(tree.get(0)), [0, 10, 20, 30, 40])
+
+    def test_in_operator(self):
+        tree = self.tree
+        for i in range(1000):
+            if i == 42:
+                continue
+
+            tree.insert(i, i ^ 10)
+        
+        self.assertFalse(42 in tree)
+        self.assertTrue(10 in tree)
+

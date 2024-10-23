@@ -11,6 +11,7 @@ than parsing SQL queries.
 
 from lstore.table import Table, Record
 from lstore.index import Index
+from config import Config
 
 
 class Query:
@@ -44,23 +45,20 @@ class Query:
         # as is, this SHOULD insert a new record, however, this needs to be tested first
 
         schema_encoding = '0' * self.table.num_columns
-        # DANIEL what does this mean??? (next 3 lines)
-        page_rid = self.table.page_directory['RID'][0]
-        page_schema = self.table.page_directory['schema'][0]
-        page_indirection = self.table.page_directory['indirection'][0]
 
-        # DANIEL are we having ordered number of the record as rid? sounds good, just wanna clarify 
+        page_rid = self.table.get_column(1)['Base'][0]
+        page_schema = self.table.get_column(3)['Base'][0]
+        page_inderection = self.table.get_column(0)['Base'][0]
 
         # DANIEL need to consider the case with many pages
         rid = 'b' + str(page_rid.num_cells + 1)
-        page_rid.write(rid)
-        page_schema(schema_encoding)
-        page_indirection.write(None)
+        #page_rid.write(rid)
+        #page_schema(schema_encoding)
+        #page_inderection.write(None)
         
         for i in range(self.table.num_columns):
-            base_page = self.table.page_directory[i][0]
-            base_page.write(columns[i])
-
+            page = self.table.get_column(i + Config.column_data_offset)['Base'][0]
+            page.write(columns[i])
 
     
     """

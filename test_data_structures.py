@@ -34,9 +34,9 @@ def test_data_structure_correctness(DataStructure, operations):
     data_structure.insert(-1, "d")
     assert(data_structure.contains_key(-1))
     assert(data_structure.get(2) == "c")
-    assert(data_structure.minimum() == "d")
-    assert(data_structure.maximum() == "c")
-    assert(data_structure.len() == 4)
+    assert(data_structure.minimum() == (-1, "d"))
+    assert(data_structure.maximum() == (2, "c"))
+    assert(len(data_structure) == 4)
 
     # Test data structure with duplicate nodes.
     # assert(data_structure.insert(2, "e"))
@@ -65,7 +65,7 @@ def test_data_structure_correctness(DataStructure, operations):
             # print(data_structure.get(x[i][0]), "!=", x[i][1])
             hit_rate[1] += 1
 
-    # 100% or else the datastructure is unusable until fixed.
+    # datastructure CAN NOT be used until this prints 100%.
     print(100 * hit_rate[0] / (hit_rate[0] + hit_rate[1]), "%", sep="")
 
     # Get all of the items at once
@@ -83,23 +83,61 @@ def test_data_structure_insert_speed(DataStructure, operations):
 
     for i in range(operations):
         key = random()
-        value = []
+        value = transform_number(key)
         data_structure.insert(key, value)
 
     return data_structure
 
+"""
+A simple function to alter a number to make the map more interesting.
+"""
+def transform_number(number):
+    number_str = str(number)
+    binary_representation = []
+
+    for char in number_str:
+        if char.isdigit():
+            if int(char) > 5:
+                binary_representation.append('1')
+            else:
+                binary_representation.append('0')
+        else:
+            binary_representation.append('.')
+
+    return ''.join(binary_representation)
+    
+
+
+def test_data_structure_get_speed(DataStructure, operations):
+    data_structure = DataStructure()
+
+    inputs = []
+
+    for _ in range(operations):
+        key = random()
+        value = transform_number(key)
+        data_structure.insert(key, value)
+
+        inputs.append(key)
+
+    return _test_data_structure_get_speed(data_structure, inputs)
+
+@timer
+def _test_data_structure_get_speed(data_structure, inputs):
+    for input in inputs:
+        if not data_structure.contains_key(input):
+            print("{input} was false for some reason")
+
+    return data_structure
+
+
 # data_structure should already contain values.
 # data_structure.get_range() must be defined.
 @timer
-def test_data_structure_get_range_speed(data_structure, operations):
+def test_data_structure_get_range_speed(data_structure, operations, range_delta):
     for i in range(operations):
         low_key = random()
-        high_key = random()
-        if low_key > high_key:
-            high_key, low_key = low_key, high_key
-
-        delta = (high_key - low_key)
-        high_key -= 2.5 * delta / 2
+        high_key = low_key + range_delta
 
         data_structure.get_range(low_key, high_key)
 
@@ -165,25 +203,20 @@ from utilities.algorithms import TestAlgorithms
 from data_structures.b_plus_tree import TestNode as TestBPlusNode
 from data_structures.b_plus_tree import BPlusTree, TestBPlusTree
 
-unittest.main()
+# unittest.main()
+
+# map = test_data_structure_get_speed(HashMap, 1_000_000)
 
 
-test_data_structure_correctness(BPlusTree, 500_000)
+# print(map.get_range(0, 0.00001))
 # test_data_structure_insert_speed(BSTree, 500_000)
 # test_data_structure_insert_speed(HashMap, 500_000)
 
-names = BPlusTree()
 
-names.insert("Kai", "Iverson")
-names.insert("Joe", "Fuck")
-names.insert("Frodo", "Baggins")
-names.insert("Paul", "Atrades")
-names.insert("Luke", "Skywalker")
-names.insert("Thanos", None)
-names.insert("", "hello")
+map = BPlusTree(unique_keys=False)
 
-print(names.get("Joe"))
-print(names.minimum())
-print(names.maximum())
-print(names.contains_key("Thanos"))
-print(names.contains_key("thanos"))
+for i in range(10):
+    map.insert(i, i * i)
+
+print(map[0])
+
