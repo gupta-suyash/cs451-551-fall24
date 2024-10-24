@@ -22,6 +22,80 @@ class Record:
         self.key = key
         self.columns = columns
 
+class PageDirectory:
+    def __init__(self, num_columns):
+        self.num_records = 0
+        self.num_columns = num_columns
+        self.data = []
+        for _ in range(0, num_columns):
+            self.data.append({'Base':[], 'Tail':[]})
+
+        
+
+    def add_record(self, columns):
+        """
+        Accepts list of column values and adds the values to the latest base page of each column
+        """
+        assert len(columns) == self.num_columns
+
+        for i, column_value in enumerate(columns):
+            # allocate new base page if we are at full capacity
+            if (not self.data[i]['Base']) or (not self.data[i]['Base'][-1].has_capacity()):
+                self.data[i]['Base'].append(Page())
+            self.data[i]['Base'][-1].write(column_value)
+
+        self.num_records += 1
+
+    def get_rid_for_the_version(self, rid, relative_version = 0):
+        """
+        Find the value rid corresponding to specified version, provided the rid in the base page
+        """
+        assert rid < self.num_records
+        
+        # IMPORTANT TODO: this works for 64 bit integers, need to make some smart function for variable data types
+        page_capacity = Config.page_size // 8
+        current_page_num = rid // page_capacity
+        current_order_in_page = rid % page_capacity
+
+        # # will toggle this flag if the latest version is in one of the tail pages
+        # tail_flg = 0
+
+        current_rid = rid
+        current_schema = self.data[Config.schema_encoding_column_idx]['Base'][current_page_num].read(current_order_in_page)       
+
+        # first get to the latest version using the indirection pointers
+        while current_schema != 0:
+            current_rid = self.data[Config.indirection_column_idx]['Base'][current_page_num].read(current_order_in_page)
+            current_page_num = current_rid // page_capacity
+            current_order_in_page = current_rid % page_capacity
+            current_schema = self.data[Config.schema_encoding_column_idx]['Base'][current_page_num].read(current_order_in_page)
+
+        # now get the relative version using the back pointers
+        # if relative version is greater then number of versions - return the initial one
+        current_version = 0
+        while current_version >= relative_version and current_rid != -1:
+            current_version -= 1
+            current_rid = self.data[Config.indirection_column_idx]['Base'][current_page_num].read(current_order_in_page)
+            current_page_num = current_rid // page_capacity
+            current_order_in_page = current_rid % page_capacity
+
+        return current_rid
+    
+    def get_column_value(self, rid, column_id):
+        assert rid < self.num_records
+        assert column_id < self.num_columns
+
+        page_capacity = Config.page_size // 8
+        page_num = rid // page_capacity
+        order_in_page = rid % page_capacity
+
+        return self.data[column_id]['Base'][page_num].read(order_in_page)
+
+
+
+
+
+
 class Table:
 
     def __init__(self, name, num_columns, primary_key):
@@ -57,13 +131,10 @@ class Table:
         self.key = primary_key + Config.column_data_offset
         self.num_columns = num_columns + Config.column_data_offset
 
-        self.page_directory = []
+        
         self.index = Index(self)
 
-        # Very rough implementaion of base and tail coupling, consider changing later
-
-        for i in range(0, num_columns + Config.column_data_offset):
-            self.page_directory.append({'Base':[Page()], 'Tail':[Page()]})
+        self.page_directory = PageDirectory(num_columns + Config.column_data_offset)
 
     def __contains__(self, key):
         """Implements the contains operator

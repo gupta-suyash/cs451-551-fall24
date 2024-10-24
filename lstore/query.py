@@ -13,13 +13,7 @@ from lstore.table import Table, Record
 from lstore.index import Index
 from lstore.page import Page
 from config import Config
-
-def create_bitmask(items):
-    """Creates a bitmask representing the given items."""
-    mask = 0
-    for item in items:
-        mask |= (1 << item)
-    return mask
+import datetime
 
 class Query:
     """
@@ -62,35 +56,20 @@ class Query:
 
         # for each column: if the last base page is at full capacity -> add a new base page
 
-        pages = []
+        columns_values = [None] * (len(columns) + Config.column_data_offset)
 
-        for column_id in range(self.table.num_columns):
-            column_page = self.table.get_column(column_id)['Base'][-1]
-            if not column_page.has_capacity(): 
-                self.table.add_base_page(column_id)
-                column_page = self.table.get_column(column_id)['Base'][-1]
-            pages.append(column_page)
+        new_rid = self.table.page_directory.num_records
 
-        page_rid = pages[Config.rid_column_idx]
-        page_schema = pages[Config.schema_encoding_column_idx]
-        page_indirection = pages[Config.indirection_column_idx]
-
-        full_pages_count = len(self.table.get_column(Config.rid_column_idx)) - 1
-
-        new_rid = full_pages_count * 512 + page_rid.num_cells # need to be more complex if we use variable types
-
-        # id of new record
-        page_rid.write(new_rid)
-
-        # 0 bit mask, because new record hasn't got any updates to mark in schema
-        page_schema.write(0)
-
-        # let zero be default value
-        page_indirection.write(0)
+        columns_values[Config.rid_column_idx] = new_rid
+        columns_values[Config.schema_encoding_column_idx] = 0
+        # get current timestamp as an integer
+        columns_values[Config.timestamp_column_idx] = int(datetime.datetime.now().timestamp())
+        columns_values[Config.indirection_column_idx] = -1
         
-        # filling out non-meta columns
-        for i in range(len(columns)):
-            pages[i + Config.column_data_offset].write(columns[i])
+        columns_values[Config.column_data_offset:] = columns[:]
+
+        self.table.page_directory.add_record(columns_values)
+        
 
     
     """
@@ -108,7 +87,7 @@ class Query:
     
     """
     # Read matching record with specified search key
-    # :param search_key: the value you want to search based on2
+    # :param search_key: the value you want to search based on
     # :param search_key_index: the column index you want to search based on
     # :param projected_columns_index: what columns to return. array of 1 or 0 values.
     # :param relative_version: the relative version of the record you need to retreive.
@@ -116,7 +95,7 @@ class Query:
     # Returns False if record locked by TPL
     # Assume that select will never be called on a key that doesn't exist
     """
-    def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
+    def select_version(self, search_key, search_key_index, projected_columns_index, relative_versio=0):
         # general idea:
         # if there is an index for this column:
         #     use index to find rids
@@ -130,15 +109,12 @@ class Query:
         # dumb rid search for now TODO: Add search of rid's using the index
         
         # first find all the relevant rids:
-        search_column = self.table.get_column(search_key_index + Config.column_data_offset)
 
         relevant_rids = []
 
-        for page_num, page in enumerate(search_column['Base']):
-            for cell_id in range(page.num_cells):
-                if page.read(cell_id) == search_key:
-                    relevant_rids.append(page_num * 512 + cell_id) # TODO: change if we have variable data types
-        
+        for rid in range(self.table.page_directory.num_records):
+            if self.table.page_directory.get_column_value(rid, search_key_index + Config.column_data_offset) == search_key:
+                relevant_rids.append(rid)       
 
         records = []
 
@@ -146,14 +122,15 @@ class Query:
             res_columns = []
             for column_id in range(len(projected_columns_index)):
                 if projected_columns_index[column_id]:
-                    column = self.table.get_column(column_id + Config.column_data_offset)
-                    # determine the number of the page for the record TODO: change for variable data types
-                    page_num = rid // 512
-                    # find id of the record inside the page
-                    page_id = rid % 512
+                    res_columns.append(self.table.page_directory.get_column_value(rid, column_id + Config.column_data_offset))
 
-                    res_columns.append(column['Base'][page_num].read(page_id))
-            records.append(Record(rid = rid, key = rid, columns=res_columns))
+
+            records.append(
+                Record(
+                    rid = rid,
+                    key = self.table.page_directory.get_column_value(rid, self.table.key + Config.column_data_offset),
+                    columns=res_columns)
+            )
 
         return records
 
