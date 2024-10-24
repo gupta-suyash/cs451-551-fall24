@@ -209,6 +209,15 @@ unittest.main()
 
 
 # print(map.get_range(0, 0.00001))
-test_data_structure_insert_speed(BPlusTree, 500_000) # executed in 4.7528 seconds. 4.2134 with better parent method
+# test_data_structure_insert_speed(BPlusTree, 500_000) # executed in 4.7528 seconds. 4.2134 with better parent method
 # test_data_structure_insert_speed(HashMap, 500_000)
 
+map = BPlusTree(minimum_degree=2)
+
+for i in range(10):
+    map.insert(i, i*i)
+
+for i in range(10):
+    map.remove(i)
+    print(list(map.keys()))
+    print(map.is_maintained())

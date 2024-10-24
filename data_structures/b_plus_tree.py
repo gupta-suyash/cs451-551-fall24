@@ -36,7 +36,7 @@ class Node:
 
         if self.is_leaf:
             if len(self.values) != len(self.keys):
-                raise LeafNodeValueError(len(self.values), len(self.keys), self)
+                raise LeafNodeValueCountError(len(self.values), len(self.keys), self)
         else:
             if len(self.values) != len(self.keys) + 1:
                 raise InternalNodeValueCountError(len(self.values), len(self.keys), self)
@@ -59,6 +59,10 @@ class Node:
             for value in self.values:
                 if value.parent != self:
                     raise InvalidParentError(self, value.parent, value)
+                
+        # TODO: A key in an internal node must be a key in a leaf (I'm pretty sure)
+
+        # TODO: The range of a nodes keys must be in between (inclusive I think) two keys of the parent
 
 
         return True
@@ -123,7 +127,7 @@ class TestNode(unittest.TestCase):
         node.keys = [1, 2]
         node.values = [10]  # len(values) != len(keys)
 
-        with self.assertRaises(LeafNodeValueError):
+        with self.assertRaises(LeafNodeValueCountError):
             node.is_maintained(is_root=False)
 
     def test_is_maintained_invalid_internal_node(self):
@@ -188,11 +192,10 @@ class BPlusTree:
         # self.link: Node = None
         self.minimum_degree = minimum_degree
         self.unique_keys = unique_keys
-        self.root = Node(minimum_degree)
+        self.root = Node(minimum_degree, is_leaf=True)
 
         self.search_algorithm_threshold = search_algorithm_threshold # When do we binary search keys and when do we linear scan keys?
-        self.debug_mode = debug_mode 
-        # TODO: Debug Mode.
+        self.debug_mode = debug_mode # If on, run self.is_maintained after every insertion and removal operation.
 
     def is_maintained(self):
         # Raises descriptive error is root is not maintained.
@@ -547,9 +550,123 @@ class BPlusTree:
         return node
 
     def remove(self, key):
-        # self.length -= 1 if node is successfully removed
-        # self.height may need to be adjusted
-        raise NotImplementedError
+        if not self.unique_keys:
+            # TODO: figure out how to handle deleting from a duplicate key b+ tree
+            raise NotImplementedError
+
+        # Find the leaf node that contains the key
+        leaf_node = self._get_leaf(key)
+        if leaf_node is None:
+            raise KeyError(key)
+
+        #  Find the index of the key in the leaf node
+        index = self._find_key_index(leaf_node.keys, key)
+        if index >= len(leaf_node.keys) or leaf_node.keys[index] != key:
+            raise KeyError(key)
+
+        # Remove the key and corresponding value
+        leaf_node.keys.pop(index)
+        leaf_node.values.pop(index)
+        self.length -= 1
+
+        # Handle underflow
+        if len(leaf_node.keys) < self.minimum_degree - 1:
+            self._handle_underflow(leaf_node)
+
+        if self.debug_mode:
+            self.is_maintained()
+
+    def _handle_underflow(self, node):
+        """
+        pseudo code:
+        1  IF the node we removed from is the root DO 
+        2      return
+        3  END IF
+        4  find the path from the node parent to the node
+        5  IF there is a left libling with an item to spare DO
+        6      borrow from the left sibling, return
+        7  END IF
+        8  IF there is a right sibling with an item to spare DO
+        9      borrow from the right sibling, return
+        10 END IF
+        11 IF there is a left sibling DO
+        12     merge with the left sibling
+        13     IF parent underflows DO
+        14         resursively call this function on the parent
+        15     END IF
+        16 ELSE DO     # Garanteed to be a right sibling
+        17     merge with the right sibling
+        18     IF parent underflows DO
+        19         resursively call this function on the parent
+        20 END IF-ELSE
+
+        TLDR
+        Attempt to borrow a sibling
+        Otherwise merge with a sibling and recursion
+
+        Prioritize the left sibling
+        """
+        parent = node.parent
+
+        if parent is None:  # If node is the root
+            if len(node.keys) == 0: # If the tree is empty
+                self.root = node.values[0] if node.values else Node(self.minimum_degree, is_leaf=True)
+                self.height -= 1
+            return
+
+        # Find the index of the node in the parent's values
+        index = parent.values.index(node)
+
+        # If left sibling exists
+        if index > 0:
+            left_sibling = parent.values[index - 1]
+            if len(left_sibling.keys) > self.minimum_degree - 1:  # If left sibling has a spare item
+                # Borrow from left sibling
+                borrowed_key = left_sibling.keys.pop()
+                borrowed_value = left_sibling.values.pop()
+                node.keys.insert(0, parent.keys[index - 1])
+                node.values.insert(0, borrowed_value)
+                parent.keys[index - 1] = borrowed_key
+                return
+
+        # If right sibling exists
+        if index < len(parent.values) - 1:
+            right_sibling = parent.values[index + 1]
+            if len(right_sibling.keys) > self.minimum_degree - 1:  # If right sibling has a spare item
+                # Borrow from right sibling
+                borrowed_key = right_sibling.keys.pop(0)
+                borrowed_value = right_sibling.values.pop(0)
+                node.keys.append(parent.keys[index])
+                node.values.append(borrowed_value)
+                parent.keys[index] = borrowed_key
+                return
+
+        # If we can't borrow, 
+        if index > 0:  # Merge with left sibling
+            left_sibling = parent.values[index - 1]
+            left_sibling.keys.append(parent.keys[index - 1])
+            left_sibling.keys.extend(node.keys)
+            left_sibling.values.extend(node.values)
+
+            parent.keys.pop(index - 1)
+            parent.values.pop(index)
+
+            if len(parent.keys) < self.minimum_degree - 1:
+                self._handle_underflow(parent)  # Handle potential underflow in parent
+        else:  # Merge with right sibling
+            right_sibling = parent.values[index + 1]
+            node.keys.append(parent.keys[index])
+            node.keys.extend(right_sibling.keys)
+            node.values.extend(right_sibling.values)
+
+            parent.keys.pop(index)
+            parent.values.pop(index + 1)
+
+            if len(parent.keys) < self.minimum_degree - 1:
+                self._handle_underflow(parent)  # Handle potential underflow in parent
+
+        
+
 
     def __len__(self):
         return self.length
@@ -613,7 +730,7 @@ class BPlusTree:
 
 class TestBPlusTree(unittest.TestCase):
     def setUp(self):
-        self.tree = BPlusTree(minimum_degree=2)
+        self.tree = BPlusTree(minimum_degree=2, unique_keys=False)
 
     # I used https://www.cs.usfca.edu/~galles/visualization/BPlusTree.html to help me design this. -Kai
     # Its what a tree should look like after inserting 1 through 10 in order.
@@ -730,12 +847,20 @@ class TestBPlusTree(unittest.TestCase):
         self.assertEqual(tree.root.values[2].keys, [4, 5]) 
 
     def test_insert_duplicate_keys_1(self):
-        tree = self.make_generic_tree()
+        tree = BPlusTree(minimum_degree=2, unique_keys=False)
         for i in range(10):
             tree.insert(i, i)
         
         for i in range(10):
             tree.insert(i, i)
+
+    def test_insert_duplicate_keys_2(self):
+        tree = BPlusTree(minimum_degree=2, unique_keys=True)
+        for i in range(10):
+            tree.insert(i, i*i)
+
+        with self.assertRaises(NonUniqueKeyError):
+            tree.insert(0, 0)
 
 
     def test_valid_leaf_link(self):
@@ -833,4 +958,26 @@ class TestBPlusTree(unittest.TestCase):
         while not node.is_leaf:
             self.assertTrue(node.values[-1].parent == node)
             node = node.values[-1]
+
+    def test_remove(self):
+        tree = self.tree
+        for i in range(50):
+            tree.insert(i, i*i)
+
+        tree.remove(42)
+        self.assertTrue(tree.is_maintained())
+        self.assertFalse(tree.get(42))
+        self.assertTrue(len(tree) == 49)
+
+    def test_fill_and_empty_tree(self):
+        tree = self.tree
+        for i in range(10):
+            tree.insert(i, i*i)
+
+        for i in range(0, 10, -1):
+            tree.remove(i)
+            self.assertTrue(tree.is_maintained())
+
+        self.assertTrue(tree.root.values == [])
+        self.assertTrue(len(tree) == 0)
             

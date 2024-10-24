@@ -44,7 +44,7 @@ class MinimumDegreeError(BPlusTreeError):
         self.node = node
         super().__init__(f"Node is NOT maintained: minimum_degree is {self.minimum_degree} for node {self.node}")
 
-class LeafNodeValueError(BPlusTreeError):
+class LeafNodeValueCountError(BPlusTreeError):
     def __init__(self, values_count, keys_count, node):
         self.values_count = values_count
         self.keys_count = keys_count
@@ -110,4 +110,4 @@ class NonUniqueKeyError(BPlusTreeError):
 
 class KeyError(BPlusTreeError):
     def __init__(self, key):
-        super().__init__(f"{key}")
+        super().__init__(f"Key {key} is not in the B+ Tree")
