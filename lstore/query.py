@@ -146,70 +146,71 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
-        # general idea
-        # use index to find rid
-        # append the new record version to the tail page 
-        # update schema for base and tail records
-        # DANIEL QUESTION: do we even need schema for now? I dont seem to understand where is it used?
-        # Update indirection column for latest tail version and for base record
-        # DANIEL QUESTION WHAT SERVES AS PTR? Do we need another id for specific record in memory? to distinguish between tail and base records
+        # # general idea
+        # # use index to find rid
+        # # append the new record version to the tail page 
+        # # update schema for base and tail records
+        # # DANIEL QUESTION: do we even need schema for now? I dont seem to understand where is it used?
+        # # Update indirection column for latest tail version and for base record
+        # # DANIEL QUESTION WHAT SERVES AS PTR? Do we need another id for specific record in memory? to distinguish between tail and base records
 
-        # dumb rid search for now TODO: Add search of rid's using the index
+        # # dumb rid search for now TODO: Add search of rid's using the index
         
-        # first find all the relevant rids:
+        # # first find all the relevant rids:
 
-        relevant_rids = []
+        # relevant_rids = []
 
-        for rid in range(self.table.page_directory.num_records):
-            if self.table.page_directory.get_column_value(rid, self.table.key + Config.column_data_offset) == primary_key:
-                relevant_rids.append(rid)       
+        # for rid in range(self.table.page_directory.num_records):
+        #     if self.table.page_directory.get_column_value(rid, self.table.key + Config.column_data_offset) == primary_key:
+        #         relevant_rids.append(rid)       
 
-        # should be only one base rid
-        assert len(relevant_rids) == 1
+        # # should be only one base rid
+        # assert len(relevant_rids) == 1
 
-        base_rid = relevant_rids[0]
+        # base_rid = relevant_rids[0]
 
-        # get rid of the latest record
-        tail_flg, latest_rid = self.table.page_directory.get_rid_for_version(base_rid, 0)
+        # # get rid of the latest record
+        # tail_flg, latest_rid = self.table.page_directory.get_rid_for_version(base_rid, 0)
 
-        new_rid = self.table.page_directory.num_tail_records
+        # new_rid = self.table.page_directory.num_tail_records
 
-        # initialize the data for the new record in tail
-        columns_values = [None] * (len(columns) + Config.column_data_offset)
+        # # initialize the data for the new record in tail
+        # columns_values = [None] * (len(columns) + Config.column_data_offset)
 
-        columns_values[Config.rid_column_idx] = new_rid
-        # get the latest values
-        latest_column_values = []
-        for column_id in range(self.table.num_columns):
-            latest_column_values.append(self.table.page_directory.get_column_value(latest_rid, column_id + Config.column_data_offset, tail_flg))
+        # columns_values[Config.rid_column_idx] = new_rid
+        # # get the latest values
+        # latest_column_values = []
+        # for column_id in range(self.table.num_columns):
+        #     latest_column_values.append(self.table.page_directory.get_column_value(latest_rid, column_id + Config.column_data_offset, tail_flg))
 
-        columns_values[Config.column_data_offset:] = latest_column_values[:]
+        # columns_values[Config.column_data_offset:] = latest_column_values[:]
 
-        # update the values that are being updated
-        updated_schema = 0
-        for column_id, column_value in enumerate(columns):
-            if column_value is not None:
-                updated_schema = utils.set_bit(updated_schema, column_id + Config.column_data_offset)
-                columns_values[Config.column_data_offset + column_id] = column_value
+        # # update the values that are being updated
+        # updated_schema = 0
+        # for column_id, column_value in enumerate(columns):
+        #     if column_value is not None:
+        #         updated_schema = utils.set_bit(updated_schema, column_id + Config.column_data_offset)
+        #         columns_values[Config.column_data_offset + column_id] = column_value
 
-        columns_values[Config.schema_encoding_column_idx] = updated_schema
-        columns_values[Config.timestamp_column_idx] = int(datetime.datetime.now().timestamp())
+        # columns_values[Config.schema_encoding_column_idx] = updated_schema
+        # columns_values[Config.timestamp_column_idx] = int(datetime.datetime.now().timestamp())
 
-        # initialize the indirection for new tail record depending on two cases
-        if tail_flg == 0:
-            # this means there were no prior updates to this record and we have to create the first tail record
-            columns_values[Config.indirection_column_idx] = -1
-        else:
-            # in this case we already have a tail record for this one
-            columns_values[Config.indirection_column_idx] = latest_rid
+        # # initialize the indirection for new tail record depending on two cases
+        # if tail_flg == 0:
+        #     # this means there were no prior updates to this record and we have to create the first tail record
+        #     columns_values[Config.indirection_column_idx] = -1
+        # else:
+        #     # in this case we already have a tail record for this one
+        #     columns_values[Config.indirection_column_idx] = latest_rid
 
-        self.table.page_directory.add_record(columns_values, tail_flg=1)
+        # self.table.page_directory.add_record(columns_values, tail_flg=1)
 
-        # and now we update the base record accordingly
-        self.table.page_directory.set_column_value
+        # # and now we update the base record accordingly
+        # self.table.page_directory.set_column_value
 
 
-        for rid of the latest recor in self.table.num_columns + Config,
+        # for rid of the latest recor in self.table.num_columns + Config,
+        # pass
         pass
 
     
