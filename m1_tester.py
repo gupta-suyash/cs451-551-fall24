@@ -24,7 +24,6 @@ seed(3562901)
 
 for i in range(0, number_of_records):
     key = 92106429 + randint(0, number_of_records)
-
     #skip duplicate keys
     while key in records:
         key = 92106429 + randint(0, number_of_records)
@@ -37,7 +36,7 @@ print("Insert finished")
 # Check inserted records using select query
 for key in records:
     # select function will return array of records 
-    # here we are sure that there is only one record in t hat array
+    # here we are sure that there is only one record in that array
     record = query.select(key, 0, [1, 1, 1, 1, 1])[0]
     error = False
     for i, column in enumerate(record.columns):
@@ -46,8 +45,10 @@ for key in records:
     if error:
         print('select error on', key, ':', record, ', correct:', records[key])
     else:
+        #print('select on', key, ':', record)
         pass
-        # print('select on', key, ':', record)
+
+print('Successful select')
 
 for key in records:
     updated_columns = [None, None, None, None, None]

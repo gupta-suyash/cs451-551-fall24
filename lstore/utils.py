@@ -13,3 +13,4 @@ def toggle_bit(value, bit_position):
 def get_bit(value, bit_position):
     """Returns the value of the bit at the given position."""
     return (value >> bit_position) & 1
+

@@ -11,14 +11,10 @@ than parsing SQL queries.
 
 from lstore.table import Table, Record
 from lstore.index import Index
+from lstore.page import Page
+import lstore.utils as utils
 from config import Config
-
-def create_bitmask(items):
-    """Creates a bitmask representing the given items."""
-    mask = 0
-    for item in items:
-        mask |= (1 << item)
-    return mask
+import datetime
 
 class Query:
     """
@@ -27,7 +23,7 @@ class Query:
     Queries that succeed should return the result or True
     Any query that crashes (due to exceptions) should return False
     """
-    def __init__(self, table):
+    def __init__(self, table : Table):
         self.table = table
         pass
 
@@ -58,19 +54,23 @@ class Query:
         # as is, this SHOULD insert a new record, however, this needs to be tested first
 
         # in general we should return the whole column, not just the first page TODO: fix this
-        page_rid = self.table.get_column(Config.rid_column_idx)['Base'][0]
-        page_schema = self.table.get_column(Config.schema_encoding_column_idx)['Base'][0]
-        page_indirection = self.table.get_column(Config.indirection_column_idx)['Base'][0]
 
-        rid = page_rid.num_cells
-        page_rid.write(rid)
-        page_schema.write(0)
-        # let zero correspond to null pointer
-        page_indirection.write(0)
+        # for each column: if the last base page is at full capacity -> add a new base page
+
+        columns_values = [None] * (len(columns) + Config.column_data_offset)
+
+        new_rid = self.table.page_directory.num_records
+
+        columns_values[Config.rid_column_idx] = new_rid
+        columns_values[Config.schema_encoding_column_idx] = 0
+        # get current timestamp as an integer
+        columns_values[Config.timestamp_column_idx] = int(datetime.datetime.now().timestamp())
+        columns_values[Config.indirection_column_idx] = -1
         
-        for i in range(len(columns)):
-            page = self.table.get_column(i + Config.column_data_offset)['Base'][0]
-            page.write(columns[i])
+        columns_values[Config.column_data_offset:] = columns[:]
+
+        self.table.page_directory.add_record(columns_values)
+        
 
     
     """
@@ -88,7 +88,7 @@ class Query:
     
     """
     # Read matching record with specified search key
-    # :param search_key: the value you want to search based on2
+    # :param search_key: the value you want to search based on
     # :param search_key_index: the column index you want to search based on
     # :param projected_columns_index: what columns to return. array of 1 or 0 values.
     # :param relative_version: the relative version of the record you need to retreive.
@@ -96,7 +96,7 @@ class Query:
     # Returns False if record locked by TPL
     # Assume that select will never be called on a key that doesn't exist
     """
-    def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
+    def select_version(self, search_key, search_key_index, projected_columns_index, relative_version=0):
         # general idea:
         # if there is an index for this column:
         #     use index to find rids
@@ -107,7 +107,36 @@ class Query:
         #   for _ in range(relative_version)
         #       go to the previous version of the record using pointer to prev version
 
-        pass
+        # dumb rid search for now TODO: Add search of rid's using the index
+        
+        # first find all the relevant rids:
+
+        relevant_rids = []
+
+        for rid in range(self.table.page_directory.num_records):
+            if self.table.page_directory.get_column_value(rid, search_key_index + Config.column_data_offset) == search_key:
+                relevant_rids.append(rid)       
+
+        records = []
+
+        for rid in relevant_rids:
+            # get the rid corresponding to the relevant version
+            tail_flg, target_rid = self.table.page_directory.get_rid_for_version(rid, relative_version)
+            res_columns = []
+            for column_id in range(len(projected_columns_index)):
+                if projected_columns_index[column_id]:
+                    res_columns.append(self.table.page_directory.get_column_value(target_rid, column_id + Config.column_data_offset, tail_flg))
+
+
+            records.append(
+                Record(
+                    rid = rid,
+                    key = self.table.page_directory.get_column_value(rid, self.table.key + Config.column_data_offset),
+                    columns=res_columns)
+            )
+
+        return records
+
 
 
     
@@ -117,13 +146,26 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
-        # general idea
-        # use index to find rid
-        # append the new record version to the tail page 
-        # update schema for base and tail records
-        # DANIEL QUESTION: do we even need schema for now? I dont seem to understand where is it used?
-        # Update indirection column for latest tail version and for base record
-        # DANIEL QUESTION WHAT SERVES AS PTR? Do we need another id for specific record in memory? to distinguish between tail and base records
+        # # general idea
+        # # use index to find rid
+        # # append the new record version to the tail page 
+        # # update schema for base and tail records
+        # # DANIEL QUESTION: do we even need schema for now? I dont seem to understand where is it used?
+        # # Update indirection column for latest tail version and for base record
+        # # DANIEL QUESTION WHAT SERVES AS PTR? Do we need another id for specific record in memory? to distinguish between tail and base records
+
+        # dumb rid search for now TODO: Add search of rid's using the index
+        
+        # first find all the relevant rids:
+
+        relevant_rids = []
+
+        for rid in range(self.table.page_directory.num_records):
+            if self.table.page_directory.get_column_value(rid, self.table.key + Config.column_data_offset) == primary_key:
+                relevant_rids.append(rid)       
+
+        # should be only one base rid
+        assert len(relevant_rids) == 1
 
         pass
 

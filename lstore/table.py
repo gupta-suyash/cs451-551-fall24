@@ -22,9 +22,136 @@ class Record:
         self.key = key
         self.columns = columns
 
+class PageDirectory:
+    def __init__(self, num_columns):
+        self.num_records = 0
+        self.num_tail_records = 0
+        self.num_columns = num_columns
+        self.data = []
+        for _ in range(0, num_columns):
+            self.data.append({'Base':[], 'Tail':[]})
+
+        
+
+    def add_record(self, columns, tail_flg = 0):
+        """
+        Accepts list of column values and adds the values to the latest base page of each column
+        """
+        assert len(columns) == self.num_columns
+
+        page_class = 'Base' if tail_flg == 0 else 'Tail'
+
+        for i, column_value in enumerate(columns):
+            # allocate new base page if we are at full capacity
+            if (not self.data[i][page_class]) or (not self.data[i][page_class][-1].has_capacity()):
+                self.data[i][page_class].append(Page())
+            self.data[i][page_class][-1].write(column_value)
+
+        if tail_flg == 0:
+            self.num_records += 1
+        else:
+            self.num_tail_records += 1
+
+    def get_rid_for_version(self, rid, relative_version = 0):
+        """
+        Find the value rid corresponding to specified version, provided the rid in the base page
+        Returns rid and flag whether it is in base or tail
+        """
+        assert rid < self.num_records
+        
+        # IMPORTANT TODO: this works for 64 bit integers, need to make some smart function for variable data types
+        page_capacity = Config.page_size // 8
+        current_rid = rid
+        page_num = current_rid // page_capacity
+        order_in_page = current_rid % page_capacity
+
+        schema = self.data[Config.schema_encoding_column_idx]['Base'][page_num].read(order_in_page)
+        indirection = self.data[Config.indirection_column_idx]['Base'][page_num].read(order_in_page)
+
+        # return base record if there is only one version
+        if indirection == -1: 
+            return 0, current_rid
+
+        # get the latest version first
+        current_rid = indirection
+        
+        page_num = current_rid // page_capacity
+        order_in_page = current_rid % page_capacity
+
+        # from now on we are definetely working with tail
+        schema = self.data[Config.schema_encoding_column_idx]['Tail'][page_num].read(order_in_page)
+        indirection = self.data[Config.indirection_column_idx]['Tail'][page_num].read(order_in_page)
+        
+        # get the relative version by iterating backwards using the indirection pointer
+        # we stop either if we reached the specified relative version or the primary tail record (in this case we return the base record)
+        version = 0
+        while version > relative_version and indirection != -1:
+            current_rid = indirection
+            
+            page_num = current_rid // page_capacity
+            order_in_page = current_rid % page_capacity
+
+            # from now on we are definetely working with tail
+            schema = self.data[Config.schema_encoding_column_idx]['Tail'][page_num].read(order_in_page)
+            indirection = self.data[Config.indirection_column_idx]['Tail'][page_num].read(order_in_page)
+            version -= 1
+
+        if version == relative_version:
+            # return record from the tail
+            return 1, current_rid
+        
+        elif indirection == -1:
+            return 0, current_rid
+
+        assert 1 == 0 # shouldn't reach this part
+
+        pass
+    
+    def get_column_value(self, rid, column_id, tail_flg = 0):
+        assert column_id < self.num_columns
+
+        page_capacity = Config.page_size // 8
+        page_num = rid // page_capacity
+        order_in_page = rid % page_capacity
+
+        if tail_flg == 0:
+            assert rid < self.num_records
+            return self.data[column_id]['Base'][page_num].read(order_in_page)
+        else:
+            assert rid < self.num_tail_records
+            return self.data[column_id]['Tail'][page_num].read(order_in_page)
+        
+    def set_column_value(self, rid, column_id, tail_flg = 0):
+        assert column_id < self.num_columns
+
+        page_capacity = Config.page_size // 8
+        page_num = rid // page_capacity
+        order_in_page = rid % page_capacity
+
+        if tail_flg == 0:
+            assert rid < self.num_records
+            return self.data[column_id]['Base'][page_num].read(order_in_page)
+        else:
+            assert rid < self.num_tail_records
+            return self.data[column_id]['Tail'][page_num].read(order_in_page)
+    
+    def get_tail_column_value(self, rid, column_id):
+        assert column_id < self.num_columns
+
+        page_capacity = Config.page_size // 8
+        page_num = rid // page_capacity
+        order_in_page = rid % page_capacity
+
+        return self.data[column_id]['Tail'][page_num].read(order_in_page)
+
+
+
+
+
+
 class Table:
 
-    def __init__(self, name, num_columns, key):
+    def __init__(self, name, num_columns, primary_key):
         """Initialize a Table
 
         Parameters
@@ -42,7 +169,7 @@ class Table:
         """
 
         # Validate that the primary key column is within the range of columns
-        if (key >= num_columns):
+        if (primary_key >= num_columns):
             # TODO: Raise an error since this should not be possible
             pass
 
@@ -57,13 +184,10 @@ class Table:
         self.key = key + Config.column_data_offset
         self.num_columns = num_columns + Config.column_data_offset
 
-        self.page_directory = []
+        
         self.index = Index(self)
 
-        # Very rough implementaion of base and tail coupling, consider changing later
-
-        for i in range(0, num_columns + Config.column_data_offset):
-            self.page_directory.append({'Base':[Page()], 'Tail':[Page()]})
+        self.page_directory = PageDirectory(num_columns + Config.column_data_offset)
 
     def __contains__(self, key):
         """Implements the contains operator
@@ -114,6 +238,11 @@ class Table:
         if column_index >= self.num_columns or column_index < 0:
             raise ColumnDoesNotExist(column_index, self.num_columns)
         return self.page_directory[column_index]
+    
+    def add_base_page(self, column_index):
+        if column_index >= self.num_columns or column_index < 0:
+            raise ColumnDoesNotExist(column_index, self.num_columns)
+        self.page_directory[column_index]['Base'].append(Page())
 
     def __merge(self):
         print("merge is happening")
