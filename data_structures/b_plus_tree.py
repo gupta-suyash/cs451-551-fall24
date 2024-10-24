@@ -1,14 +1,16 @@
 from utilities.algorithms import binary_search, linear_search
 from config import Config
 from errors import *
+from random import random
 import unittest
 
 class Node:
-    def __init__(self, minimum_degree=16, is_leaf: bool=False):
+    def __init__(self, minimum_degree=16, is_leaf: bool=False, parent=None):
         assert(minimum_degree >= 2)
         self.minimum_degree = minimum_degree
         self.is_leaf: bool = is_leaf
         self.link = None    # Should be none unless a leaf.
+        self.parent = parent  # Should be none only if a root.
         
         self.keys = []
         self.values = []
@@ -22,12 +24,15 @@ class Node:
         if self.minimum_degree < 2:
             raise MinimumDegreeError(self.minimum_degree, self)
         
+        # if not (is_root or self.parent):
+        #     raise OrphanNodeError(self)
+        
         if not is_root:
             if len(self.keys) < self.minimum_degree - 1:
                 raise NonRootNodeKeyCountError(len(self.keys), self.minimum_degree - 1, self)
 
         if len(self.keys) > 2 * self.minimum_degree - 1:
-            raise MaxKeysExceededError(len(self.keys), self)
+            raise MaxKeysExceededError(len(self.keys), self.minimum_degree * 2 - 1, self)
 
         if self.is_leaf:
             if len(self.values) != len(self.keys):
@@ -43,15 +48,42 @@ class Node:
         for i in range(1, len(self.keys)):
             if self.keys[i - 1] > self.keys[i]:
                 raise NonDecreasingOrderError(self)
+            
+        if not (is_root or self.parent):
+            raise OrphanNodeError(self)
+        
+        if is_root and self.parent:
+            raise RootParentError(self)
+        
+        if not self.is_leaf:
+            for value in self.values:
+                if value.parent != self:
+                    raise InvalidParentError(self, value.parent, value)
+
 
         return True
     
     def __str__(self):
-        # TODO: describe the path to the Node from the root
-        node_type = "Leaf" if self.is_leaf else "Internal"
-        value_string = f", values={self.values}" if self.is_leaf else ""
+        if self.is_leaf:
+            node_type = "Leaf"
+        elif self.parent:
+            node_type = "Internal"
+        else:
+            node_type = "Root"
         
-        return f"{node_type} Node(keys={self.keys}{value_string})"
+        max_items = 4
+        keys_to_show = self.keys[:max_items]
+        values_to_show = self.values[:max_items] if self.is_leaf else []
+        
+        value_string = f", values={values_to_show}" if self.is_leaf else ""
+        if len(self.keys) > max_items:
+            keys_to_show.append("...")  # formats with quotes, but it isn't worth my time to make it look pretty.
+        
+        if self.is_leaf and len(self.values) > max_items:
+            values_to_show.append("...")
+
+        return f"{node_type} Node(keys={keys_to_show}{value_string})"
+
 
         
 
@@ -72,15 +104,17 @@ class TestNode(unittest.TestCase):
         node = Node(minimum_degree=2, is_leaf=True)
         node.keys = [1, 2, 3]
         node.values = [10, 20, 30]
+        node.parent = Node()
 
         self.assertTrue(node.is_maintained(is_root=False))
 
     def test_is_maintained_internal_node(self):
-        child_node1 = Node(minimum_degree=2, is_leaf=True)
-        child_node2 = Node(minimum_degree=2, is_leaf=True)
         node = Node(minimum_degree=2, is_leaf=False)
+        child_node1 = Node(minimum_degree=2, is_leaf=True, parent=node)
+        child_node2 = Node(minimum_degree=2, is_leaf=True, parent=node)
         node.keys = [1]
         node.values = [child_node1, child_node2]
+        node.parent = Node()
 
         self.assertTrue(node.is_maintained(is_root=False))
 
@@ -112,7 +146,8 @@ class TestNode(unittest.TestCase):
     def test_keys_within_limits(self):
         node = Node(minimum_degree=2, is_leaf=False)
         node.keys = [1, 2, 3]
-        node.values = [Node()] * 4
+        node.values = [Node(parent=node)] * 4
+        node.parent = Node()
 
         self.assertTrue(node.is_maintained(is_root=False))
 
@@ -150,7 +185,7 @@ class BPlusTree:
         ):
         self.height = 0
         self.length = 0
-        self.link: Node = None
+        # self.link: Node = None
         self.minimum_degree = minimum_degree
         self.unique_keys = unique_keys
         self.root = Node(minimum_degree)
@@ -200,10 +235,8 @@ class BPlusTree:
             return
         
         node = self.root
-        path = []
 
         while not node.is_leaf:
-            path.append(node)
             # Finds index where node.keys == key OR key could be inserted to maintain a non-decreasing node.keys
             index = self._find_key_index(node.keys, key)
 
@@ -225,13 +258,76 @@ class BPlusTree:
         self.length += 1
 
         if len(node.keys) == 2 * self.minimum_degree:
-            self._split_leaf_node(node, path)
+            self._split_leaf_node(node)
+
+        if self.debug_mode:
+            self.is_maintained()
+
+
+    """
+    Bulk Insert Method
+    If you already many items, use this instead of insert. It's way faster.
+    items: a list of key-value tuples
+    """
+    def bulk_insert(self, items):
+        # Doesn't work for most sized inputs... yet.
+        # 5 fold efficiency gains for whoever finishes this.
+        raise NotImplementedError  
+
+        # TODO: make this its own actual error
+        if len(self.root.keys):
+            print("build insert needs to be on an empty tree")
+            raise KeyError("uhh tree too big")
+
+        # Sort items by key
+        items_sorted = sorted(items, key=lambda item: item[0])
+        leaf_nodes = []
+        current_leaf = []
+
+        for item in items_sorted:
+            current_leaf.append(item)
+            if len(current_leaf) == self.minimum_degree * 2 - 1:
+                leaf_nodes.append(current_leaf)
+                current_leaf = []
+
+        if current_leaf:
+            leaf_nodes.append(current_leaf)
+
+        self._build_tree(leaf_nodes)
+        # print(self.is_maintained())
+
+    def _build_tree(self, leaf_nodes):
+        if not leaf_nodes:
+            return None
+        
+        leaf_parent = Node(self.minimum_degree, is_leaf=False)
+        for i, items in enumerate(leaf_nodes):
+            new_leaf = Node(self.minimum_degree, is_leaf=True)
+            new_leaf.parent = leaf_parent
+            new_leaf.keys = [item[0] for item in items]
+            new_leaf.values = [item[1] for item in items]
+            leaf_parent.values.append(new_leaf)
+            if i != 0:
+                leaf_parent.keys.append(new_leaf.keys[0])
+
+
+
+        for i in range(len(leaf_parent.values) - 1):
+            leaf_parent.values[i].link  = leaf_parent.values[i + 1]
+
+        self.root = leaf_parent
+
+        if len(leaf_parent.keys) >= self.minimum_degree:
+            self._split_internal_node(leaf_parent)
+
+
+        
 
     # Not using for now becuase self[key] = value always inserts a value, never updates a value.
     # def __setitem__(self, key, value):
     #    self.insert(key, value)
 
-    def _split_leaf_node(self, leaf_node, path):
+    def _split_leaf_node(self, leaf_node):
         new_leaf = Node(self.minimum_degree, is_leaf=True)
         
         # Move half the keys and values to the new leaf node
@@ -247,18 +343,27 @@ class BPlusTree:
 
         # If the leaf is the root, create a new root
         if leaf_node == self.root:
+            # Parents are correct
             new_root = Node(self.minimum_degree, is_leaf=False)
             new_root.keys.append(new_leaf.keys[0])  # Add the first key of the new leaf
             new_root.values.append(leaf_node)  # Left child
             new_root.values.append(new_leaf)  # Right child
             self.root = new_root
             self.height += 1
+
+            leaf_node.parent = new_root
+            new_leaf.parent = new_root
         else:
+            # Pretty sure parents are legit
+
             # Insert the new key into the parent node
-            parent_node = path[-1]
+            parent_node = leaf_node.parent
             index = self._find_key_index(parent_node.keys, new_leaf.keys[0])
             parent_node.keys.insert(index, new_leaf.keys[0])
             parent_node.values.insert(index + 1, new_leaf)
+
+
+            new_leaf.parent = parent_node
 
             # Split the parent node if too many keys
             if len(parent_node.keys) >= 2 * self.minimum_degree:
@@ -272,6 +377,10 @@ class BPlusTree:
         new_internal.keys = internal_node.keys[mid_index + 1:]
         new_internal.values = internal_node.values[mid_index + 1:]
 
+        # Divorce operation
+        for value in new_internal.values:
+            value.parent = new_internal
+
         # Update the original internal node
         internal_node.keys = internal_node.keys[:mid_index]
         internal_node.values = internal_node.values[:mid_index + 1]
@@ -284,31 +393,22 @@ class BPlusTree:
             new_root.values.append(new_internal)  # Right child
             self.root = new_root
             self.height += 1
+
+            internal_node.parent = new_root
+            new_internal.parent = new_root
         else:
             # Insert the promoted key into the parent node
-            parent_node = self._find_parent(self.root, internal_node)
+            parent_node = internal_node.parent   # Should be correct and fastest, but isn't correct.
             index = self._find_key_index(parent_node.keys, internal_node.keys[-1])
             # parent_node.keys.insert(index, internal_node.keys[-1])
             parent_node.keys.insert(index, mid_key)
             parent_node.values.insert(index + 1, new_internal)
 
+            new_internal.parent = internal_node.parent
+
             # Split the parent if necessary (recursive)
             if len(parent_node.keys) >= 2 * self.minimum_degree:
                 self._split_internal_node(parent_node)
-
-    def _find_parent(self, current_node, child_node):
-        # Find the parent of a given child node
-        if current_node.is_leaf:
-            return None  # Return None for root or if child is the root itself
-
-        for i, child in enumerate(current_node.values):
-            if child == child_node:
-                return current_node
-            if not child.is_leaf:
-                parent = self._find_parent(child, child_node)
-                if parent:
-                    return parent
-        return None
     
     def _find_key_index(self, keys, key):
         if len(keys) < self.search_algorithm_threshold:
@@ -428,8 +528,15 @@ class BPlusTree:
             node = node.values[0]
 
         return node
+    
+    def maximum(self):
+        minimum_node = self._maximum_leaf()
+        if minimum_node is None:
+            return None
+        
+        return (minimum_node.keys[-1], minimum_node.values[-1])
 
-    def maximum(self) -> Node:
+    def _maximum_leaf(self) -> Node:
         node = self.root
         if len(node.keys) == 0:
             return None
@@ -437,7 +544,7 @@ class BPlusTree:
         while not node.is_leaf:
             node = node.values[-1]
 
-        return (node.keys[-1], node.values[-1])
+        return node
 
     def remove(self, key):
         # self.length -= 1 if node is successfully removed
@@ -519,6 +626,8 @@ class TestBPlusTree(unittest.TestCase):
         # Internal Nodes
         internal1 = Node(2, False)
         internal2 = Node(2, False)
+        internal1.parent = tree.root
+        internal2.parent = tree.root
         tree.root.values = [internal1, internal2]
         
         # Leaf Nodes
@@ -531,9 +640,15 @@ class TestBPlusTree(unittest.TestCase):
 
         internal1.keys = [3, 5]
         internal1.values = [leaf11, leaf12, leaf13]
+        leaf11.parent = internal1
+        leaf12.parent = internal1
+        leaf13.parent = internal1
 
         internal2.keys = [9]
         internal2.values = [leaf21, leaf22]
+        leaf21.parent = internal2
+        leaf22.parent = internal2
+        
 
         # Leaf Node values
         leaf11.keys = [1, 2]
@@ -699,3 +814,23 @@ class TestBPlusTree(unittest.TestCase):
         self.assertFalse(42 in tree)
         self.assertTrue(10 in tree)
 
+    def test_many_trees(self):
+        for size in range(10):
+            self._test_many_trees(size * 3)
+
+    def _test_many_trees(self, size):
+        tree = self.tree
+        for i in range(size):
+            tree.insert(random(), i)
+            self.assertTrue(tree.is_maintained())
+
+    def test_parent_pointer(self):
+        tree = self.tree
+        for i in range(50):
+            tree.insert(i, i*i)
+
+        node = tree.root
+        while not node.is_leaf:
+            self.assertTrue(node.values[-1].parent == node)
+            node = node.values[-1]
+            

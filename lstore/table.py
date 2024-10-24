@@ -54,7 +54,7 @@ class Table:
         # Set internal state
         self.name = name
 
-        self.key = primary_key + Config.column_data_offset
+        self.key = key + Config.column_data_offset
         self.num_columns = num_columns + Config.column_data_offset
 
         self.page_directory = []

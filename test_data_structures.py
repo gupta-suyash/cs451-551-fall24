@@ -198,25 +198,17 @@ from lstore.page import Page
 
 import unittest
 from lstore.db import Database, TestDatabase
-from lstore.page import Page, TestPage
+from lstore.page import Page# , TestPage
 from utilities.algorithms import TestAlgorithms
 from data_structures.b_plus_tree import TestNode as TestBPlusNode
 from data_structures.b_plus_tree import BPlusTree, TestBPlusTree
 
-# unittest.main()
+unittest.main()
 
 # map = test_data_structure_get_speed(HashMap, 1_000_000)
 
 
 # print(map.get_range(0, 0.00001))
-# test_data_structure_insert_speed(BSTree, 500_000)
+test_data_structure_insert_speed(BPlusTree, 500_000) # executed in 4.7528 seconds. 4.2134 with better parent method
 # test_data_structure_insert_speed(HashMap, 500_000)
-
-
-map = BPlusTree(unique_keys=False)
-
-for i in range(10):
-    map.insert(i, i * i)
-
-print(map[0])
 

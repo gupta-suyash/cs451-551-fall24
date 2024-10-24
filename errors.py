@@ -71,15 +71,33 @@ class NonRootNodeKeyCountError(BPlusTreeError):
         super().__init__(f"Node is NOT maintained: Non-root node has {self.keys_count} keys, less than minimum required ({self.minimum_required}) for node {self.node}")
 
 class MaxKeysExceededError(BPlusTreeError):
-    def __init__(self, keys_count, node):
+    def __init__(self, keys_count, maximum_keys, node):
         self.keys_count = keys_count
+        self.maximum_keys = maximum_keys
         self.node = node
-        super().__init__(f"Node is NOT maintained: Node has {self.keys_count} keys, exceeding maximum for node {self.node}")
+        super().__init__(f"Node is NOT maintained: Node has {self.keys_count} keys, exceeding the limit of {maximum_keys} keys for node {self.node}")
 
 class NonDecreasingOrderError(BPlusTreeError):
     def __init__(self, node):
         self.node = node
         super().__init__(f"Node is NOT maintained: Keys are not in non-decreasing order for node {self.node}")
+
+class OrphanNodeError(BPlusTreeError):
+    def __init__(self, node):
+        self.node = node
+        super().__init__(f"Node is NOT maintained: Missing parent for non root node {self.node}")
+
+class RootParentError(BPlusTreeError):
+    def __init__(self, node):
+        self.node = node
+        super().__init__(f"Node is NOT maintained: Root node cannot have parent {self.node}")
+
+class InvalidParentError(BPlusTreeError):
+    def __init__(self, real_parent, false_parent, node):
+        self.real_parent = real_parent
+        self.false_parent = false_parent
+        self.node = node
+        super().__init__(f"{self.false_parent}, you are ... NOT the father of {self.node}!!! {self.real_parent} is.")
 
 class UnbalancedTreeError(BPlusTreeError):
     def __init__(self, node):
