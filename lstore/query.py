@@ -12,6 +12,7 @@ than parsing SQL queries.
 from lstore.table import Table, Record
 from lstore.index import Index
 from lstore.page import Page
+import lstore.utils as utils
 from config import Config
 import datetime
 
@@ -95,7 +96,7 @@ class Query:
     # Returns False if record locked by TPL
     # Assume that select will never be called on a key that doesn't exist
     """
-    def select_version(self, search_key, search_key_index, projected_columns_index, relative_versio=0):
+    def select_version(self, search_key, search_key_index, projected_columns_index, relative_version=0):
         # general idea:
         # if there is an index for this column:
         #     use index to find rids
@@ -119,10 +120,12 @@ class Query:
         records = []
 
         for rid in relevant_rids:
+            # get the rid corresponding to the relevant version
+            tail_flg, target_rid = self.table.page_directory.get_rid_for_version(rid, relative_version)
             res_columns = []
             for column_id in range(len(projected_columns_index)):
                 if projected_columns_index[column_id]:
-                    res_columns.append(self.table.page_directory.get_column_value(rid, column_id + Config.column_data_offset))
+                    res_columns.append(self.table.page_directory.get_column_value(target_rid, column_id + Config.column_data_offset, tail_flg))
 
 
             records.append(
@@ -151,6 +154,62 @@ class Query:
         # Update indirection column for latest tail version and for base record
         # DANIEL QUESTION WHAT SERVES AS PTR? Do we need another id for specific record in memory? to distinguish between tail and base records
 
+        # dumb rid search for now TODO: Add search of rid's using the index
+        
+        # first find all the relevant rids:
+
+        relevant_rids = []
+
+        for rid in range(self.table.page_directory.num_records):
+            if self.table.page_directory.get_column_value(rid, self.table.key + Config.column_data_offset) == primary_key:
+                relevant_rids.append(rid)       
+
+        # should be only one base rid
+        assert len(relevant_rids) == 1
+
+        base_rid = relevant_rids[0]
+
+        # get rid of the latest record
+        tail_flg, latest_rid = self.table.page_directory.get_rid_for_version(base_rid, 0)
+
+        new_rid = self.table.page_directory.num_tail_records
+
+        # initialize the data for the new record in tail
+        columns_values = [None] * (len(columns) + Config.column_data_offset)
+
+        columns_values[Config.rid_column_idx] = new_rid
+        # get the latest values
+        latest_column_values = []
+        for column_id in range(self.table.num_columns):
+            latest_column_values.append(self.table.page_directory.get_column_value(latest_rid, column_id + Config.column_data_offset, tail_flg))
+
+        columns_values[Config.column_data_offset:] = latest_column_values[:]
+
+        # update the values that are being updated
+        updated_schema = 0
+        for column_id, column_value in enumerate(columns):
+            if column_value is not None:
+                updated_schema = utils.set_bit(updated_schema, column_id + Config.column_data_offset)
+                columns_values[Config.column_data_offset + column_id] = column_value
+
+        columns_values[Config.schema_encoding_column_idx] = updated_schema
+        columns_values[Config.timestamp_column_idx] = int(datetime.datetime.now().timestamp())
+
+        # initialize the indirection for new tail record depending on two cases
+        if tail_flg == 0:
+            # this means there were no prior updates to this record and we have to create the first tail record
+            columns_values[Config.indirection_column_idx] = -1
+        else:
+            # in this case we already have a tail record for this one
+            columns_values[Config.indirection_column_idx] = latest_rid
+
+        self.table.page_directory.add_record(columns_values, tail_flg=1)
+
+        # and now we update the base record accordingly
+        self.table.page_directory.set_column_value
+
+
+        for rid of the latest recor in self.table.num_columns + Config,
         pass
 
     
