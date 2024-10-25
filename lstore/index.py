@@ -7,7 +7,8 @@ is optional for this milestone. The API for this class exposes the two functions
 drop_index (optional for this milestone)
 """
 
-from data_structures.binary_search_tree import BSTree
+from data_structures.b_plus_tree import BPlusTree
+from data_structures.hash_map import HashMap
 from config import Config
 
 POINT_QUERY = 0
@@ -15,74 +16,91 @@ RANGE_QUERY = 1
 
 class Index:
     """
-    A data strucutre holding indices for various columns of a table. Key column should be indexd by default, other columns can be indexed through this object. Indices are usually B-Trees, but other data structures can be used as well.
+    Give the index a column and a target value, and the index will give you a list of row id's that match
+
+    Don't forget to maintain the index using maintain_insert and maintain_delete.
+    The index needs to be told when the table is changed.
+    Take care of your index!!!
     """
-    def __init__(self, table, DataStructure=Config.index_data_structure):
+    def __init__(self, table):
         # One index for each column. All are empty initially.
         self.indices = [None] *  table.num_columns
-        self.DataStructure = DataStructure
+        self.OrderedDataStructure = Config.index_ordered_data_structure
+        self.UnorderedDataStructure = Config.index_unordered_data_structure
+        self.usage_histogram = [[0, 0]] * table.num_data_columns
+        self.table = table # Table owns and Index and Index has a reference to that table that owns it.
 
-        # Table owns and Index and Index has a reference to that table that owns it.
-        self.table = table
-
-        #
-        
-        # Make an index for the primary key.
-        # self.create_index(table.key)
-
-        # Record how often queries are performed against each column.
-        # We can then create and delete indices accordingly.
-        self.usage_histogram = [[0, 0]] * table.num_columns
+        # Make an unordered index for the primary key
+        self.create_index(table.primary_key, self.UnorderedDataStructure)
         
 
     def locate(self, column: int, value):
         """
         returns the location of all records with the given value on column "column"
         """
-        assert column < self.table.num_columns and column >= 0, "Index.locate should receive a valid column number"
-        self.usage_histogram[column][POINT_QUERY] += 1
+        if self.indices.get(column):
+            index = self.indices[column]
+            return index.get(value)
+        else:
+            return list(self._locate_linear(column, target_value=value))
 
-        if self.indices[column] is None:
-            return self.__linear_scan(column)
-
-        raise NotImplementedError
 
 
     def locate_range(self, begin, end, column):
         """
         Returns the RIDs of all records with values in column "column" between "begin" and "end"
         """
-        self.usage_histogram[column][RANGE_QUERY] += 1
-        raise NotImplementedError
+        if self.indices.get(column):
+            index = self.indices[column]
+            return index.get_range(begin, end)
+        else:
+            return list(self._locate_range_linear(column, low_target_value=begin, high_target_value=end))
 
 
-    def create_index(self, column_number):
+    def create_index(self, column_number, DataStructure):
         """
-        optional: Create index on specific column
+        Create index on specific column
         """
         if self.indices[column_number] is not None:
             raise ValueError("Index at column ", column_number, " already exists")
         
 
-        self.indices[column_number] = self.DataStructure()
-        print(self.table.name)
+        self.indices[column_number] = DataStructure()
+        for rid, value in self.table.column_iterator(column_number):
+            self.indices[column_number].insert(value, rid)
 
-        # Pseudo code for how I imagine creating the index table.
-        # for cell in self.table.column[column]:
-        #     self.indices
+        # TODO: impliment bulk insert for the data structures
+        # self.indices[column_number].bulk_insert(list(self.table.column_iterator()))
 
         raise NotImplementedError
 
 
     def drop_index(self, column_number):
         """
-        optional: Drop index of specific column
+        Drop index of specific column
         """
         self.indices[column_number] = None
     
+    def _locate_linear(self, column, target_value):
+        """
+        Returns the rid of every instance of the target_value in a column
+        """
+        for rid, value in enumerate(self.table.column_iterator(column)):
+            if value == target_value:
+                yield rid
 
-    def __linear_scan(self, column):
+    def _locate_range_linear(self, column, low_target_value, high_target_value):
         """
         I'm pretty sure that if a column doesn't have an index, we need to linear scan the rows to locate a row. -Kai
         """
+        for rid, value in enumerate(self.table.column_iterator(column)):
+            if value >= low_target_value and value <= high_target_value:
+                yield rid
+    
+    def maintain_insert(self, row, rid):
+        for data_column, index in enumerate(self.indices):
+            if index:
+                index.insert(row[data_column], rid)
+
+    def maintain_delete(self, rid):
         raise NotImplementedError

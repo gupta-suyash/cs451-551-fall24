@@ -49,3 +49,9 @@ class HashMap:
                 values.append(value)
 
         return values
+    
+    def remove(self, key):
+        if key in self.map:
+            del self.map[key]
+        else:
+            raise KeyError

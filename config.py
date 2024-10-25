@@ -3,12 +3,13 @@ A centralized spot to configure the database.
 """
 # from data_structures.b_plus_tree import BPlusTree
 from data_structures.binary_search_tree import BSTree
-# from data_structures.hash_map import HashMap
+from data_structures.hash_map import HashMap
 
 class Config:
     page_size = 2**12    #4KB
     page_cell_size = 8   # Thats what the adssignment description said.
-    index_data_structure = BSTree     # Make sure this class passes test_data_structure_correctness(), and does well on it.
+    index_ordered_data_structure = BSTree     # Make sure this class passes test_data_structure_correctness(), and does well on it.
+    index_unordered_data_structure = HashMap
     b_plus_tree_minimum_degree = 2**7   # 2**6 to 2**7 for fast insert. 2**8 to 2**9 for fast range query
     b_plus_tree_search_algorithm_threshold = 10 # Switch between a linear scan and binary search in b+ tree at this value. Might improve performance.
     lstore_is_cumulative = False    # Paper mentions there are two ways to do this.
@@ -38,7 +39,7 @@ class Config:
 
         print(f"Page Size: {Config.page_size}")
         print(f"Page Cell Size: {Config.page_cell_size}")
-        print(f"Index data structure: {Config.index_data_structure.__name__}")
+        print(f"Index data structure: {Config.index_ordered_data_structure.__name__}")
         print(f"B+ Tree minimum degree: {Config.b_plus_tree_minimum_degree}")
         print(f"L-Store is Cumulative: {Config.lstore_is_cumulative}")
 
