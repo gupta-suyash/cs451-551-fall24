@@ -29,6 +29,7 @@ class Index:
         self.UnorderedDataStructure = Config.index_unordered_data_structure
         self.usage_histogram = [[0, 0]] * table.num_data_columns
         self.table = table # Table owns and Index and Index has a reference to that table that owns it.
+        self.maintenance_lists = [[] * table.num_columns] # Used for lazy index maintenance
 
         # Make an unordered index for the primary key
         self.create_index(table.primary_key, self.UnorderedDataStructure)
@@ -38,6 +39,8 @@ class Index:
         """
         returns the location of all records with the given value on column "column"
         """
+        self._apply_maintenance(column)
+
         if self.indices.get(column):
             index = self.indices[column]
             return index.get(value)
@@ -50,6 +53,8 @@ class Index:
         """
         Returns the RIDs of all records with values in column "column" between "begin" and "end"
         """
+        self._apply_maintenance(column)
+
         if self.indices.get(column):
             index = self.indices[column]
             return index.get_range(begin, end)
@@ -57,22 +62,16 @@ class Index:
             return list(self._locate_range_linear(column, low_target_value=begin, high_target_value=end))
 
 
-    def create_index(self, column_number, DataStructure):
+    def create_index(self, column_number, DataStructure=Config.index_ordered_data_structure):
         """
         Create index on specific column
         """
         if self.indices[column_number] is not None:
             raise ValueError("Index at column ", column_number, " already exists")
         
-
+        # Initialize the data structure but still hold off on inserting values.
         self.indices[column_number] = DataStructure()
-        for rid, value in self.table.column_iterator(column_number):
-            self.indices[column_number].insert(value, rid)
-
-        # TODO: impliment bulk insert for the data structures
-        # self.indices[column_number].bulk_insert(list(self.table.column_iterator()))
-
-        raise NotImplementedError
+        self.maintenance_lists[column_number] = [(value, rid) for rid, value in enumerate(self.table.column_iterator())]
 
 
     def drop_index(self, column_number):
@@ -83,7 +82,8 @@ class Index:
     
     def _locate_linear(self, column, target_value):
         """
-        Returns the rid of every instance of the target_value in a column
+        Returns the rid of every row with target_value in a column
+        A linear scan point query
         """
         for rid, value in enumerate(self.table.column_iterator(column)):
             if value == target_value:
@@ -91,16 +91,37 @@ class Index:
 
     def _locate_range_linear(self, column, low_target_value, high_target_value):
         """
-        I'm pretty sure that if a column doesn't have an index, we need to linear scan the rows to locate a row. -Kai
+        Returns the rid of every row with a value within range in a column
+        A linear scan range query
         """
         for rid, value in enumerate(self.table.column_iterator(column)):
             if value >= low_target_value and value <= high_target_value:
                 yield rid
     
     def maintain_insert(self, row, rid):
-        for data_column, index in enumerate(self.indices):
-            if index:
-                index.insert(row[data_column], rid)
+        for column, value in enumerate(row):
+            if self.indices[column]:
+                self.maintenance_lists[column].append(value)
 
     def maintain_delete(self, rid):
         raise NotImplementedError
+    
+    def _apply_maintenance(self, column):
+        maintenance_list = self.maintenance_lists[column]
+
+        if maintenance_list == []:
+            return
+
+        index = self.indices[column]
+
+        if not index:
+            maintenance_list = []
+            return
+
+        if type(index) is self.OrderedDataStructure:
+            maintenance_list.sort(key=lambda item: item[0])     # Sort by key
+
+        for item in maintenance_list:
+            index.insert(item[0], item[1])
+
+        maintenance_list = []

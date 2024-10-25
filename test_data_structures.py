@@ -81,15 +81,21 @@ def test_data_structure_correctness(DataStructure, operations):
 def test_data_structure_insert_speed(DataStructure, operations):
     data_structure = DataStructure()
 
-    for i in range(operations):
-        key = random()
-        value = transform_number(key)
-        data_structure.insert(key, value)
+    items = [(random(), "Value")] * operations
+    sorted(items, key= lambda x: x[0])
+
+    for item in items:
+    # for i in range(operations):
+        # key = random()
+        # value = key * key
+        # data_structure.insert(key, value)
+        data_structure.insert(item[0], item[1])
 
     return data_structure
 
 """
 A simple function to alter a number to make the map more interesting.
+WARNING don't use this in a benchmark. It REALLY slows down the benchmark.
 """
 def transform_number(number):
     number_str = str(number)
@@ -211,13 +217,3 @@ unittest.main()
 # print(map.get_range(0, 0.00001))
 # test_data_structure_insert_speed(BPlusTree, 500_000) # executed in 4.7528 seconds. 4.2134 with better parent method
 # test_data_structure_insert_speed(HashMap, 500_000)
-
-map = BPlusTree(minimum_degree=2)
-
-for i in range(10):
-    map.insert(i, i*i)
-
-for i in range(10):
-    map.remove(i)
-    print(list(map.keys()))
-    print(map.is_maintained())
