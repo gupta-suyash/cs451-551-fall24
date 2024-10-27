@@ -271,7 +271,7 @@ class Table:
         """
 
         # Check if the range is valid
-        if (column > self.num_columns):
+        if (column >= self.num_columns):
             # Immediately return None to prevent looping
             return None
 
