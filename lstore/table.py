@@ -16,6 +16,8 @@ from config import Config
 
 
 class Record:
+    """A Record stores multiple columns for a single row
+    """
 
     def __init__(self, rid, key, columns):
         self.rid = rid
@@ -23,6 +25,13 @@ class Record:
         self.columns = columns
 
 class PageDirectory:
+    """The PageDirectory controls access to different pages
+
+    Pages can span multiple blocks of memory and the PageDirectory
+    keeps track of these blocks so that they are easily
+    indexable.
+    """
+
     def __init__(self, num_columns):
         self.num_records = 0
         self.num_tail_records = 0
@@ -30,8 +39,6 @@ class PageDirectory:
         self.data = []
         for _ in range(0, num_columns):
             self.data.append({'Base':[], 'Tail':[]})
-
-        
 
     def add_record(self, columns, tail_flg = 0):
         """
@@ -148,6 +155,14 @@ class PageDirectory:
 
 
 class Table:
+    """A Table defines a unique grouping of records
+
+    An individual Table is responsible for storing and indexing
+    a list of Records which are logically stored in Pages.
+    Each column of a Record is stored in a separate list of Pages
+    which is kept track by a PageDirectory.  An Index object allows
+    for individual records to be retrieved by value.
+    """
 
     def __init__(self, name, num_columns, primary_key):
         """Initialize a Table
@@ -177,12 +192,9 @@ class Table:
 
         # Set internal state
         self.name = name
-
         self.primary_key = primary_key + Config.column_data_offset
         self.num_columns = num_columns
-        
         self.index = Index(self)
-
         self.page_directory = PageDirectory(num_columns + Config.column_data_offset)
 
     def __contains__(self, key):
@@ -248,19 +260,18 @@ class Table:
         """
 
         # Check if the range is valid
-        if (column > self.num_data_columns):
+        if (column > self.num_columns):
             # Immediately return None to prevent looping
             return None
 
         # Loop through all possible rows and yield a value
         for i in range(self.page_directory.num_records):
             # Resolve the true RID
-            rid = self.page_directory.get_column_value(i, column=Config.rid_column_idx, tail_flg)
+            rid = self.page_directory.get_column_value(i, column+Config.rid_column_idx, tail_flg)
             
             # Only yield if RID is valid
             if (rid != -1):
-                yield rid_res, self.page_directory.get_column_value(rid, column+Config.column_data_offset, tail_flg)
-        
+                yield rid, self.page_directory.get_column_value(rid, column+Config.column_data_offset, tail_flg)
         
     def get_column(self, column_index):
         if column_index >= self.num_columns or column_index < 0:
