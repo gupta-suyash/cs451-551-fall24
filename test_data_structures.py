@@ -217,3 +217,11 @@ unittest.main()
 # print(map.get_range(0, 0.00001))
 # test_data_structure_insert_speed(BPlusTree, 500_000) # executed in 4.7528 seconds. 4.2134 with better parent method
 # test_data_structure_insert_speed(HashMap, 500_000)
+
+
+from lstore.db import Database
+from lstore.index import Index
+
+db = Database()
+db.create_table(name="Test Table", num_columns=3, key_index=0)
+print(db.tables)

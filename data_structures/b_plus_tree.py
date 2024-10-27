@@ -55,14 +55,22 @@ class Node:
         if is_root and self.parent:
             raise RootParentError(self)
         
+        # I don't like the tripple nesting here
         if not self.is_leaf:
             for value in self.values:
                 if value.parent != self:
                     raise InvalidParentError(self, value.parent, value)
-                
-        # TODO: A key in an internal node must be a key in a leaf (I'm pretty sure)
 
         # TODO: The range of a nodes keys must be in between (inclusive I think) two keys of the parent
+
+        # not even a real property of a b+ tree :(, don't waste your time on this.
+        # if not self.is_leaf:
+        #     for index in range(len(self.keys)):
+        #         if self.values[index + 1].keys[0] != self.keys[index]:
+        #             print(f"{self.values[index + 1].keys[0]}, {self.keys[index]}")
+        #             # Can you tell i'm have fun with these error names yet?
+        #             raise LikeFatherLikeSonError(self, self.values[index + 1])
+
 
 
         return True
@@ -114,11 +122,16 @@ class TestNode(unittest.TestCase):
 
     def test_is_maintained_internal_node(self):
         node = Node(minimum_degree=2, is_leaf=False)
+        node.keys = [1]
+        node.parent = Node()
+
         child_node1 = Node(minimum_degree=2, is_leaf=True, parent=node)
         child_node2 = Node(minimum_degree=2, is_leaf=True, parent=node)
-        node.keys = [1]
+
+        child_node1.keys = [0]
+        child_node2.keys = [1]
+
         node.values = [child_node1, child_node2]
-        node.parent = Node()
 
         self.assertTrue(node.is_maintained(is_root=False))
 
@@ -152,6 +165,8 @@ class TestNode(unittest.TestCase):
         node.keys = [1, 2, 3]
         node.values = [Node(parent=node)] * 4
         node.parent = Node()
+        for i in range(4):
+            node.values[i].keys = [i]
 
         self.assertTrue(node.is_maintained(is_root=False))
 
@@ -205,6 +220,12 @@ class BPlusTree:
         leaf_height = self._check_leaves_height(self.root, 0)
         if leaf_height is None:
             raise UnbalancedTreeError
+        
+        link_size = len(list(self.items()))
+        tree_size = len(self)
+        if link_size != tree_size:
+            raise BrokenLinkError(link_size, tree_size)
+
         return True
 
     def _check_leaves_height(self, node: Node, current_height: int):
@@ -610,45 +631,76 @@ class BPlusTree:
         parent = node.parent
 
         if parent is None:  # If node is the root
-            if len(node.keys) == 0: # If the tree is empty
-                self.root = node.values[0] if node.values else Node(self.minimum_degree, is_leaf=True)
+            if len(node.keys) == 0: # If the root has no keys, the node is no longer the root.
+                if node.values: # The root was empty because the tree needs some height removed
+                    self.root = node.values[0]
+                    self.root.parent = None # Important for tree maintenance.
+                else: # The root was empty because the tree is empty
+                    self.root = Node(self.minimum_degree, is_leaf=True)
                 self.height -= 1
             return
 
         # Find the index of the node in the parent's values
         # Raises error if node isn't in index. Won't happen in a properly maintained tree.
         index = parent.values.index(node)
+        left_sibling = parent.values[index - 1] if index > 0 else None
+        right_sibling = parent.values[index + 1] if index < len(parent.values) - 1 else None
+        assert (left_sibling or right_sibling)
 
-        # If left sibling exists
-        if index > 0:
-            left_sibling = parent.values[index - 1]
-            if len(left_sibling.keys) > self.minimum_degree - 1:  # If left sibling has a spare item
-                # Borrow from left sibling
-                borrowed_key = left_sibling.keys.pop() # Take the last item of left_sibling
+        if left_sibling:
+            left_sibling_has_spare_item = len(left_sibling.keys) > self.minimum_degree - 1
+            if left_sibling_has_spare_item:
+
+                if self.debug_mode:
+                    print(f"{node} is borrowing from its left sibling {left_sibling}")
+    
+                # Borrow last item in left sibling
+                borrowed_key = left_sibling.keys.pop()
                 borrowed_value = left_sibling.values.pop()
-                # node.keys.insert(0, parent.keys[index - 1]) # Insert the item at
+
+                # Borrowed item becomes first in node
                 node.keys.insert(0, borrowed_key)
                 node.values.insert(0, borrowed_value)
-                # parent.keys[index - 1] = borrowed_key
-                parent.keys[index] = borrowed_key
+
+                # Update borrowed items parent
+                if not node.is_leaf:
+                    borrowed_value.parent = node
+                
+                # Update parents keys. [index - 1] cuz that's how keys and values are related to eachother
+                parent.keys[index - 1] = borrowed_key
+
                 return
 
-        # If right sibling exists
-        if index < len(parent.values) - 1:
-            right_sibling = parent.values[index + 1]
-            if len(right_sibling.keys) > self.minimum_degree - 1:  # If right sibling has a spare item
-                # Borrow from right sibling
+        if right_sibling:
+            right_sibling_has_spare_item = len(right_sibling.keys) > self.minimum_degree - 1
+            if right_sibling_has_spare_item:
+
+                if self.debug_mode:
+                    print(f"{node} is borrowing from its right sibling {right_sibling}")
+
+                # Borrow first item in right sibling
                 borrowed_key = right_sibling.keys.pop(0)
                 borrowed_value = right_sibling.values.pop(0)
-                # node.keys.append(parent.keys[index])
+
+                # Borrowed item becomes last in node
                 node.keys.append(borrowed_key)
                 node.values.append(borrowed_value)
-                parent.keys[index] = parent.values[index + 1].keys[0]
+
+                # Update borrowed items parent
+                if not node.is_leaf:
+                    borrowed_value.parent = node
+
+                # Update parents keys
+                
+                parent.keys[index] = right_sibling.keys[0]
                 return
 
         # If we can't borrow, 
-        if index > 0:  # Merge with left sibling
-            left_sibling = parent.values[index - 1]
+        if left_sibling:
+
+            if self.debug_mode:
+                print(f"{node} is merging with left sibling {left_sibling}")
+
             left_sibling.keys.append(parent.keys[index - 1])
             left_sibling.keys.extend(node.keys)
             left_sibling.values.extend(node.values)
@@ -656,19 +708,30 @@ class BPlusTree:
             parent.keys.pop(index - 1)
             parent.values.pop(index)
 
-            if len(parent.keys) < self.minimum_degree - 1:
-                self._handle_underflow(parent)  # Handle potential underflow in parent
         else:  # Merge with right sibling
-            right_sibling = parent.values[index + 1]
-            # node.keys.append(parent.keys[index])
+            
+            if self.debug_mode:
+                print(f"{node} is merging with right sibling {right_sibling}")
+
+            # Update right sibling's item's parent
+            if not node.is_leaf:
+                for child in right_sibling.values:
+                    child.parent = node
+
+            # Take all right sibling vlaues
             node.keys.extend(right_sibling.keys)
             node.values.extend(right_sibling.values)
 
+            # Update link
+            node.link = right_sibling.link
+
+            # Remove reference to right sibling
             parent.keys.pop(index)
             parent.values.pop(index + 1)
 
-            if len(parent.keys) < self.minimum_degree - 1:
-                self._handle_underflow(parent)  # Handle potential underflow in parent
+        parent_is_underflowed = len(parent.keys) < self.minimum_degree - 1
+        if parent_is_underflowed:
+            self._handle_underflow(parent)
 
         
 
@@ -733,6 +796,9 @@ class BPlusTree:
         return True
     
     def __str__(self):
+        # TODO: doesn't print the exact way I would like, but gets the point across.
+        # Rn it groups nodes that are siblings. It should also group nodes by tree depth.
+        # Todo so, we need to keep track of the right most node at each height.
         if not self.root:
             return "Empty B+ Tree"
         
@@ -795,18 +861,26 @@ class TestBPlusTree(unittest.TestCase):
         # Leaf Node values
         leaf11.keys = [1, 2]
         leaf11.values = [1, 2]
+        leaf11.link = leaf12
 
         leaf12.keys = [3, 4]
         leaf12.values = [3, 4]
+        leaf12.link = leaf13
 
         leaf13.keys = [5, 6]
         leaf13.values = [5, 6]
+        leaf13.link = leaf21
 
         leaf21.keys = [7, 8]
         leaf21.values = [7, 8]
+        leaf21.link = leaf22
 
         leaf22.keys = [9, 10]
         leaf22.values = [9, 10]
+        leaf22.link = None
+
+        tree.length = 10
+        tree.height = 2
 
         return tree
     
@@ -822,7 +896,7 @@ class TestBPlusTree(unittest.TestCase):
     def test_not_eq(self):
         tree1 = self.make_generic_tree()
         tree2 = self.make_generic_tree()
-        tree2.root.values[0].values[0].keys = [0, 2]    # A leaf has keys [0, 2] instead of [1, 2]
+        tree2._minimum_leaf().keys[0] = -10
         self.assertTrue(tree2.is_maintained())
         self.assertNotEqual(tree1, tree2)
 
@@ -833,7 +907,6 @@ class TestBPlusTree(unittest.TestCase):
 
         for i in range(1, 11):
             self.assertEqual(tree.get(i), [i])
-
 
         tree2 = self.make_generic_tree()
 
@@ -1001,18 +1074,13 @@ class TestBPlusTree(unittest.TestCase):
         for i in range(10):
             tree.insert(i, i*i)
 
-        print(tree)
-
         for i in range(5):
-            print(i)
-            tree.remove(i)
-            self.assertTrue(tree.is_maintained())
-        print()
-        print(tree)
-
-
-        # print(tree.root.values)
-        # print(len(tree))
-        # self.assertTrue(tree.root.values == [])
-        # self.assertTrue(len(tree) == 0)
+            try:
+                tree.remove(i)
+                self.assertTrue(tree.is_maintained())
+            except Exception as e:
+                print(f"\n{e}")
+                print(i)
+                print(tree)
+                raise e
             
