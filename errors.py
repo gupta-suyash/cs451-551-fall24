@@ -9,6 +9,16 @@ class TableDoesNotExistError(Exception):
         self.message = message
         super().__init__(self.message)
 
+class PrimaryKeyOutOfBoundsError(Exception):
+    def __init__(self, primary_key, num_columns):
+        self.message = f"The primary key `{primary_key}` is out of range `{num_columns}"
+        super().__init__(self.message)
+
+class TotalColumnsInvalidError(Exception):
+    def __init__(self, num_columns):
+        self.message = f"The total number of columns `{num_columns}` is not greater than zero."
+        super().__init__(self.message)
+
 """PAGE ERRORS"""
 class PageNoCapacityError(Exception):
     def __init__(self, message="Page does not have enough capacity to write to"):

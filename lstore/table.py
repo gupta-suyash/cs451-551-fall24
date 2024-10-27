@@ -11,11 +11,13 @@ the periodical merge of its corresponding page ranges.
 from lstore.index import Index
 from time import time
 from lstore.page import Page
-from errors import ColumnDoesNotExist
+from errors import ColumnDoesNotExist, PrimaryKeyOutOfBoundsError, TotalColumnsInvalidError
 from config import Config
 
 
 class Record:
+    """A Record stores multiple columns for a single row
+    """
 
     def __init__(self, rid, key, columns):
         self.rid = rid
@@ -23,6 +25,13 @@ class Record:
         self.columns = columns
 
 class PageDirectory:
+    """The PageDirectory controls access to different pages
+
+    Pages can span multiple blocks of memory and the PageDirectory
+    keeps track of these blocks so that they are easily
+    indexable.
+    """
+
     def __init__(self, num_columns):
         self.num_records = 0
         self.num_tail_records = 0
@@ -30,8 +39,6 @@ class PageDirectory:
         self.data = []
         for _ in range(0, num_columns):
             self.data.append({'Base':[], 'Tail':[]})
-
-        
 
     def add_record(self, columns, tail_flg = 0):
         """
@@ -104,8 +111,6 @@ class PageDirectory:
             return 0, current_rid
 
         assert 1 == 0 # shouldn't reach this part
-
-        pass
     
     def get_column_value(self, rid, column_id, tail_flg = 0):
         assert column_id < self.num_columns
@@ -150,6 +155,14 @@ class PageDirectory:
 
 
 class Table:
+    """A Table defines a unique grouping of records
+
+    An individual Table is responsible for storing and indexing
+    a list of Records which are logically stored in Pages.
+    Each column of a Record is stored in a separate list of Pages
+    which is kept track by a PageDirectory.  An Index object allows
+    for individual records to be retrieved by value.
+    """
 
     def __init__(self, name, num_columns, primary_key):
         """Initialize a Table
@@ -160,34 +173,29 @@ class Table:
             The name of the table
         num_columns: int
             The total number of columns to store in the table
-        key: int
+        primary_key: int
             The index of the column to use as the primary key
         
         Raises
         ------
-
+        PrimaryKeyOutOfBoundsError
+        TotalColumnsInvalidError
         """
 
         # Validate that the primary key column is within the range of columns
         if (primary_key >= num_columns):
-            # TODO: Raise an error since this should not be possible
-            pass
+            raise PrimaryKeyOutOfBoundsError(primary_key, num_columns)
 
         # Validate that the total number of columns is greater than 0
         if (num_columns <= 0):
-            # TODO: Raise an error
-            pass
+            raise TotalColumnsInvalidError(num_columns)
 
         # Set internal state
         self.name = name
-
-        self.key = key + Config.column_data_offset
-        self.num_columns = num_columns + Config.column_data_offset
-
-        
-        self.index = Index(self)
-
+        self.primary_key = primary_key + Config.column_data_offset
+        self.num_columns = num_columns
         self.page_directory = PageDirectory(num_columns + Config.column_data_offset)
+        #self.index = Index(self) # TODO: Uncomment this
 
     def __contains__(self, key):
         """Implements the contains operator
@@ -204,15 +212,15 @@ class Table:
         """
 
         # Search through the primary key column and try to find it
-        v = self.index.locate(self.key, key)  # TODO: double check this is the correct column
+        v = self.index.locate(self.primary_key, key)  # TODO: double check this is the correct column
         return (v is not None)
 
-    def __getitem__(self, key):
+    def __getitem__(self, primary_key):
         """Implements the get operator
 
         Parameters
         ----------
-        key : int
+        primary_key : int
             The primary key to find within the table
 
         Returns
@@ -231,8 +239,50 @@ class Table:
         #    raise IndexError("Key {} does not exist.".format(key))
 
         # Use the internal Index to find a record
-        return self.index.locate(self.key, key)
+        return self.index.locate(self.primary_key, primary_key)
 
+    def __len__(self):
+        """Get the total number of Records
+
+        Returns
+        -------
+        l : int
+            The total number of records (regardless of deletion status)
+        """
+
+        return self.page_directory.num_records
+
+    def column_iterator(self, column, tail_flg=0):
+        """Iterate through all values in a column
+
+        Parameters
+        ----------
+        column : int
+            The column index
+        tail_flg : int (Default=0)
+            Whether the record is a tail record or not
+
+        Yields
+        ------
+        rid : int
+            The RID of the current column
+        value : any
+            The value of the column at the specific RID
+        """
+
+        # Check if the range is valid
+        if (column >= self.num_columns):
+            # Immediately return None to prevent looping
+            return None
+
+        # Loop through all possible rows and yield a value
+        for i in range(len(self)):
+            # Resolve the true RID
+            rid = self.page_directory.get_column_value(i, column+Config.rid_column_idx, tail_flg)
+            
+            # Only yield if RID is valid
+            if (rid != -1):
+                yield rid, self.page_directory.get_column_value(rid, column+Config.column_data_offset, tail_flg)
         
     def get_column(self, column_index):
         if column_index >= self.num_columns or column_index < 0:
@@ -243,6 +293,23 @@ class Table:
         if column_index >= self.num_columns or column_index < 0:
             raise ColumnDoesNotExist(column_index, self.num_columns)
         self.page_directory[column_index]['Base'].append(Page())
+
+    def delete(self, rid):
+        """Remove a specific Record given its RID
+
+        Parameters
+        ----------
+        rid : int
+            The record ID to remove
+        
+        Returns
+        -------
+        status : bool
+            Whether or not the operation completed successfully
+        """
+
+        # Set the RID column value to -1 (invalid)
+        self.page_directory.set_column_value(rid, -1, 0)
 
     def __merge(self):
         print("merge is happening")
