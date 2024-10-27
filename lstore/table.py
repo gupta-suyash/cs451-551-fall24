@@ -241,6 +241,17 @@ class Table:
         # Use the internal Index to find a record
         return self.index.locate(self.primary_key, primary_key)
 
+    def __len__(self):
+        """Get the total number of Records
+
+        Returns
+        -------
+        l : int
+            The total number of records (regardless of deletion status)
+        """
+
+        return self.page_directory.num_records
+
     def column_iterator(self, column, tail_flg=0):
         """Iterate through all values in a column
 
