@@ -27,20 +27,27 @@ class Query:
         self.table = table
         pass
 
-    
-    """
-    # internal Method
-    # Read a record with specified RID
-    # Returns True upon succesful deletion
-    # Return False if record doesn't exist or is locked due to 2PL
-    """
     def delete(self, primary_key):
+        """Delete a record given a primary_key
+
+        Parameters
+        ----------
+        primary_key : any
+            The primary key which specifies the record to delete
+        
+        Returns
+        -------
+        status : bool
+            If the operation completed successfully, this will
+            be True.  If the record doesn't exist or is locked
+            due to 2PL, this will be False.
+        """
         # Check if the requested primary key exists in the current table
         if (primary_key in self.table):
             # TODO: Eventually check for LOCK state
 
-            # TODO: Set the deletion flag on the specified record
-            pass
+            # Set the deletion flag on the specified record (Set RID to -1)
+            return self.table.delete(self.table[primary_key])
         else:
             return False
     
@@ -131,7 +138,7 @@ class Query:
             records.append(
                 Record(
                     rid = rid,
-                    key = self.table.page_directory.get_column_value(rid, self.table.key + Config.column_data_offset),
+                    key = self.table.page_directory.get_column_value(rid, self.table.primary_key + Config.column_data_offset),
                     columns=res_columns)
             )
 
@@ -161,7 +168,7 @@ class Query:
         relevant_rids = []
 
         for rid in range(self.table.page_directory.num_records):
-            if self.table.page_directory.get_column_value(rid, self.table.key + Config.column_data_offset) == primary_key:
+            if self.table.page_directory.get_column_value(rid, self.table.primary_key + Config.column_data_offset) == primary_key:
                 relevant_rids.append(rid)       
 
         # should be only one base rid

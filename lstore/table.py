@@ -194,8 +194,8 @@ class Table:
         self.name = name
         self.primary_key = primary_key + Config.column_data_offset
         self.num_columns = num_columns
-        self.index = Index(self)
         self.page_directory = PageDirectory(num_columns + Config.column_data_offset)
+        #self.index = Index(self) # TODO: Uncomment this
 
     def __contains__(self, key):
         """Implements the contains operator
@@ -276,7 +276,7 @@ class Table:
             return None
 
         # Loop through all possible rows and yield a value
-        for i in range(self.page_directory.num_records):
+        for i in range(len(self)):
             # Resolve the true RID
             rid = self.page_directory.get_column_value(i, column+Config.rid_column_idx, tail_flg)
             
@@ -293,6 +293,23 @@ class Table:
         if column_index >= self.num_columns or column_index < 0:
             raise ColumnDoesNotExist(column_index, self.num_columns)
         self.page_directory[column_index]['Base'].append(Page())
+
+    def delete(self, rid):
+        """Remove a specific Record given its RID
+
+        Parameters
+        ----------
+        rid : int
+            The record ID to remove
+        
+        Returns
+        -------
+        status : bool
+            Whether or not the operation completed successfully
+        """
+
+        # Set the RID column value to -1 (invalid)
+        self.page_directory.set_column_value(rid, -1, 0)
 
     def __merge(self):
         print("merge is happening")

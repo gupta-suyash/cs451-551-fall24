@@ -27,7 +27,7 @@ class Index:
         self.indices = [None] *  table.num_columns
         self.OrderedDataStructure = Config.index_ordered_data_structure
         self.UnorderedDataStructure = Config.index_unordered_data_structure
-        self.usage_histogram = [[0, 0]] * table.num_data_columns
+        self.usage_histogram = [[0, 0]] * table.num_columns
         self.table = table # Table owns and Index and Index has a reference to that table that owns it.
         self.maintenance_lists = [[] * table.num_columns] # Used for lazy index maintenance
 
@@ -71,7 +71,7 @@ class Index:
         
         # Initialize the data structure but still hold off on inserting values.
         self.indices[column_number] = DataStructure()
-        self.maintenance_lists[column_number] = [(value, rid) for rid, value in enumerate(self.table.column_iterator())]
+        self.maintenance_lists[column_number] = [(value, rid) for rid, value in enumerate(self.table.column_iterator(column_number))]
 
 
     def drop_index(self, column_number):
