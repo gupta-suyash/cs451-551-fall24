@@ -11,7 +11,7 @@ the periodical merge of its corresponding page ranges.
 from lstore.index import Index
 from time import time
 from lstore.page import Page
-from errors import ColumnDoesNotExist
+from errors import ColumnDoesNotExist, PrimaryKeyOutOfBoundsError, TotalColumnsInvalidError
 from config import Config
 
 
@@ -104,8 +104,6 @@ class PageDirectory:
             return 0, current_rid
 
         assert 1 == 0 # shouldn't reach this part
-
-        pass
     
     def get_column_value(self, rid, column_id, tail_flg = 0):
         assert column_id < self.num_columns
@@ -160,30 +158,28 @@ class Table:
             The name of the table
         num_columns: int
             The total number of columns to store in the table
-        key: int
+        primary_key: int
             The index of the column to use as the primary key
         
         Raises
         ------
-
+        PrimaryKeyOutOfBoundsError
+        TotalColumnsInvalidError
         """
 
         # Validate that the primary key column is within the range of columns
         if (primary_key >= num_columns):
-            # TODO: Raise an error since this should not be possible
-            pass
+            raise PrimaryKeyOutOfBoundsError(primary_key, num_columns)
 
         # Validate that the total number of columns is greater than 0
         if (num_columns <= 0):
-            # TODO: Raise an error
-            pass
+            raise TotalColumnsInvalidError(num_columns)
 
         # Set internal state
         self.name = name
 
-        self.key = key + Config.column_data_offset
-        self.num_columns = num_columns + Config.column_data_offset
-
+        self.primary_key = primary_key + Config.column_data_offset
+        self.num_columns = num_columns
         
         self.index = Index(self)
 
@@ -204,15 +200,15 @@ class Table:
         """
 
         # Search through the primary key column and try to find it
-        v = self.index.locate(self.key, key)  # TODO: double check this is the correct column
+        v = self.index.locate(self.primary_key, key)  # TODO: double check this is the correct column
         return (v is not None)
 
-    def __getitem__(self, key):
+    def __getitem__(self, primary_key):
         """Implements the get operator
 
         Parameters
         ----------
-        key : int
+        primary_key : int
             The primary key to find within the table
 
         Returns
@@ -231,8 +227,40 @@ class Table:
         #    raise IndexError("Key {} does not exist.".format(key))
 
         # Use the internal Index to find a record
-        return self.index.locate(self.key, key)
+        return self.index.locate(self.primary_key, primary_key)
 
+    def column_iterator(self, column, tail_flg=0):
+        """Iterate through all values in a column
+
+        Parameters
+        ----------
+        column : int
+            The column index
+        tail_flg : int (Default=0)
+            Whether the record is a tail record or not
+
+        Yields
+        ------
+        rid : int
+            The RID of the current column
+        value : any
+            The value of the column at the specific RID
+        """
+
+        # Check if the range is valid
+        if (column > self.num_data_columns):
+            # Immediately return None to prevent looping
+            return None
+
+        # Loop through all possible rows and yield a value
+        for i in range(self.page_directory.num_records):
+            # Resolve the true RID
+            rid = self.page_directory.get_column_value(i, column=Config.rid_column_idx, tail_flg)
+            
+            # Only yield if RID is valid
+            if (rid != -1):
+                yield rid_res, self.page_directory.get_column_value(rid, column+Config.column_data_offset, tail_flg)
+        
         
     def get_column(self, column_index):
         if column_index >= self.num_columns or column_index < 0:
