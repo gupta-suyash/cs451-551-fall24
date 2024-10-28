@@ -46,7 +46,7 @@ class HashMap:
         values = []
         for key, value in self.map.items():
             if key >= low_key and key <= high_key:
-                values.append(value)
+                values.append((value, key))
 
         return values
     

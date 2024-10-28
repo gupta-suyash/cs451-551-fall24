@@ -204,13 +204,15 @@ class BPlusTree:
         ):
         self.height = 0
         self.length = 0
-        # self.link: Node = None
         self.minimum_degree = minimum_degree
         self.unique_keys = unique_keys
         self.root = Node(minimum_degree, is_leaf=True)
 
         self.search_algorithm_threshold = search_algorithm_threshold # When do we binary search keys and when do we linear scan keys?
-        self.debug_mode = debug_mode # If on, run self.is_maintained after every insertion and removal operation.
+        
+        self.debug_mode = debug_mode
+        if self.debug_mode:
+            print("WARNING: b+ tree is in debug mode. This significantly slows down every operation.")
 
     def is_maintained(self):
         # Raises descriptive error is root is not maintained.

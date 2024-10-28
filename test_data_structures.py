@@ -1,4 +1,3 @@
-from data_structures.binary_search_tree import BSTree
 from data_structures.b_plus_tree import BPlusTree
 from data_structures.hash_map import HashMap
 from data_structures.ordered_dict import OD
@@ -233,20 +232,10 @@ m = 2 << 31
 a = 1103515245
 c = 12345
 
-def rand():
-  seed = (a * seed + c) % m
-  return seed
-
-for i in range(100000):
+for i in range(1_000_000):
     seed = (a * seed + c) % m
-    query.insert(i, seed, i % 10)
-    # query.insert(i, i, i)
-    if i % 10_000 == 0:
-        print(i)
+    query.insert(i, seed, i % 10000)
 
-print(table.index.locate_range(200, 3000000, 1))
-# table.index.create_index(1)
-
-
-
-
+print(table.index.locate_range(0, 100000, 1))
+table.index.create_index(1, ordered=False)
+print(table.index.locate_range(0, 100000, 1))
