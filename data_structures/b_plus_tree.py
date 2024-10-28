@@ -198,7 +198,7 @@ class BPlusTree:
     def __init__(
             self, 
             minimum_degree: int=Config.b_plus_tree_minimum_degree, 
-            unique_keys: bool=False,
+            unique_keys: bool=True,
             debug_mode: bool=False, 
             search_algorithm_threshold=Config.b_plus_tree_search_algorithm_threshold
         ):

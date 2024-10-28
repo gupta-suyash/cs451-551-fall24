@@ -7,8 +7,6 @@ is optional for this milestone. The API for this class exposes the two functions
 drop_index (optional for this milestone)
 """
 
-from data_structures.b_plus_tree import BPlusTree
-from data_structures.hash_map import HashMap
 from config import Config
 
 POINT_QUERY = 0
@@ -23,25 +21,20 @@ class Index:
     Take care of your index!!!
     """
     def __init__(self, table):
-        # One index for each column. All are empty initially.
         self.indices = [None] *  table.num_columns
         self.OrderedDataStructure = Config.index_ordered_data_structure
         self.UnorderedDataStructure = Config.index_unordered_data_structure
         self.usage_histogram = [[0, 0]] * table.num_columns
-        self.table = table # Table owns and Index and Index has a reference to that table that owns it.
-        self.maintenance_lists = [[] * table.num_columns] # Used for lazy index maintenance
+        self.table = table
 
-        # Make an unordered index for the primary key
-        self.create_index(table.primary_key, self.UnorderedDataStructure)
+        # self.create_index(table.primary_key, self.OrderedDataStructure)
         
 
     def locate(self, column: int, value):
         """
         returns the location of all records with the given value on column "column"
         """
-        self._apply_maintenance(column)
-
-        if self.indices.get(column):
+        if self.indices[column]:
             index = self.indices[column]
             return index.get(value)
         else:
@@ -53,9 +46,7 @@ class Index:
         """
         Returns the RIDs of all records with values in column "column" between "begin" and "end"
         """
-        self._apply_maintenance(column)
-
-        if self.indices.get(column):
+        if self.indices[column]:
             index = self.indices[column]
             return index.get_range(begin, end)
         else:
@@ -66,12 +57,20 @@ class Index:
         """
         Create index on specific column
         """
-        if self.indices[column_number] is not None:
+        if self.indices[column_number]:
             raise ValueError("Index at column ", column_number, " already exists")
         
-        # Initialize the data structure but still hold off on inserting values.
-        self.indices[column_number] = DataStructure()
-        self.maintenance_lists[column_number] = [(value, rid) for rid, value in enumerate(self.table.column_iterator(column_number))]
+        data_structure = DataStructure()
+        self.indices[column_number] = data_structure
+
+        items = list(self.table.column_iterator(column_number))
+        items.sort(key=lambda item: item[0])
+        print(items[:50])
+    
+        for rid, value in items:
+            data_structure.insert(value, rid)
+            if rid % 1000 == 0:
+                print(rid)
 
 
     def drop_index(self, column_number):
@@ -85,7 +84,7 @@ class Index:
         Returns the rid of every row with target_value in a column
         A linear scan point query
         """
-        for rid, value in enumerate(self.table.column_iterator(column)):
+        for rid, value in self.table.column_iterator(column):
             if value == target_value:
                 yield rid
 
@@ -94,34 +93,15 @@ class Index:
         Returns the rid of every row with a value within range in a column
         A linear scan range query
         """
-        for rid, value in enumerate(self.table.column_iterator(column)):
+        for rid, value in self.table.column_iterator(column):
             if value >= low_target_value and value <= high_target_value:
                 yield rid
     
-    def maintain_insert(self, row, rid):
-        for column, value in enumerate(row):
-            if self.indices[column]:
-                self.maintenance_lists[column].append(value)
+    def maintain_insert(self, columns, rid):
+        for column, value in enumerate(columns):
+            index = self.indices[column]
+            if index:
+                index.insert(value, rid)
 
     def maintain_delete(self, rid):
         raise NotImplementedError
-    
-    def _apply_maintenance(self, column):
-        maintenance_list = self.maintenance_lists[column]
-
-        if maintenance_list == []:
-            return
-
-        index = self.indices[column]
-
-        if not index:
-            maintenance_list = []
-            return
-
-        if type(index) is self.OrderedDataStructure:
-            maintenance_list.sort(key=lambda item: item[0])     # Sort by key
-
-        for item in maintenance_list:
-            index.insert(item[0], item[1])
-
-        maintenance_list = []

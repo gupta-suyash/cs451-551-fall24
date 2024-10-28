@@ -79,7 +79,7 @@ def test_data_structure_correctness(DataStructure, operations):
 
 @timer
 def test_data_structure_insert_speed(DataStructure, operations):
-    data_structure = DataStructure()
+    data_structure = DataStructure(unique_keys=False)
 
     items = [(random(), "Value")] * operations
     sorted(items, key= lambda x: x[0])
@@ -209,7 +209,7 @@ import unittest
 from data_structures.b_plus_tree import TestNode as TestBPlusNode
 from data_structures.b_plus_tree import BPlusTree, TestBPlusTree
 
-unittest.main()
+# unittest.main()
 
 # map = test_data_structure_get_speed(HashMap, 1_000_000)
 
@@ -221,7 +221,32 @@ unittest.main()
 
 from lstore.db import Database
 from lstore.index import Index
+from lstore.query import Query
 
 db = Database()
-db.create_table(name="Test Table", num_columns=3, key_index=0)
-print(db.tables)
+table = db.create_table(name="Test Table", num_columns=3, key_index=0)
+
+query = Query(table)
+
+seed = 123456789
+m = 2 << 31
+a = 1103515245
+c = 12345
+
+def rand():
+  seed = (a * seed + c) % m
+  return seed
+
+for i in range(100000):
+    seed = (a * seed + c) % m
+    query.insert(i, seed, i % 10)
+    # query.insert(i, i, i)
+    if i % 10_000 == 0:
+        print(i)
+
+print(table.index.locate_range(200, 3000000, 1))
+# table.index.create_index(1)
+
+
+
+
