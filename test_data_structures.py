@@ -208,7 +208,7 @@ import unittest
 from data_structures.b_plus_tree import TestNode as TestBPlusNode
 from data_structures.b_plus_tree import BPlusTree, TestBPlusTree
 
-# unittest.main()
+unittest.main()
 
 # map = test_data_structure_get_speed(HashMap, 1_000_000)
 
@@ -228,14 +228,18 @@ table = db.create_table(name="Test Table", num_columns=3, key_index=0)
 query = Query(table)
 
 seed = 123456789
-m = 2 << 31
+m = 2 << 62
 a = 1103515245
 c = 12345
 
-for i in range(1_000_000):
+for i in range(100):
     seed = (a * seed + c) % m
-    query.insert(i, seed, i % 10000)
+    query.insert(i, seed, 100000 // (i + 1))
 
 print(table.index.locate_range(0, 100000, 1))
 table.index.create_index(1, ordered=False)
 print(table.index.locate_range(0, 100000, 1))
+print(table.index.locate(2, 99))
+print(table.index.locate(2, 99))
+print(table.index.usage_histogram)
+print(table)

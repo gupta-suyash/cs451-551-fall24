@@ -266,7 +266,7 @@ class Table:
         """
 
         # Number of spaces
-        nsp = 6
+        nsp = 10
 
         s = ""
 
