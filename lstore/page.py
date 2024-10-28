@@ -32,21 +32,21 @@ class Page:
     def write(self, value):
         if not self.has_capacity():
             raise PageNoCapacityError
-
-
-        '''
-        if getsizeof(value) > self.cell_size:      # Consider if this should be len(value) != self.cell_size instead
-            raise PageValueTooLargeError(self.cell_size, value)
-        
-        padding_len = self.cell_size - (getsizeof(value) - 24)   # Ensures value is exactly self.cell_size bytes long.
-        value += (b"\x00" * padding_len)            # Prevents a really nasty bug.
-        '''
         
         start_index = self.__locate(self.num_cells)
         end_index = start_index + self.cell_size
         # changed so that the value is converted to bytes before trying to write it
         self.data[start_index:end_index] = value.to_bytes(8, Config.byteorder, signed=True)
         self.num_cells += 1
+
+    def write_at_location(self, value, rid):
+        if not self.has_capacity():
+            raise PageNoCapacityError
+        
+        start_index = self.__locate(rid)
+        end_index = start_index + self.cell_size
+        # changed so that the value is converted to bytes before trying to write it
+        self.data[start_index:end_index] = value.to_bytes(8, Config.byteorder, signed=True)
 
     def read(self, cell_number: int) -> bytes:
         if cell_number >= self.num_cells or cell_number < 0:

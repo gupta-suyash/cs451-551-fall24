@@ -24,6 +24,10 @@ class Record:
         self.key = key
         self.columns = columns
 
+    def info_print(self):
+        print('RID:', self.rid)
+        print('Columns:', self.columns)
+
 class PageDirectory:
     """The PageDirectory controls access to different pages
 

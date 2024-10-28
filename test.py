@@ -3,18 +3,13 @@ from lstore.query import Query
 from lstore.page import Page
 from sys import getsizeof
 
-test = Page()
+db = Database()
 
+grades_table = db.create_table('Grades', 3, 0)
+query = Query(grades_table)
 
-test.write(8)
-print(test.read(0))
+query.insert(*[0,0,0])
+query.update(0, *[1,1,None])
 
-'''
-byte_arr = bytearray()
-value=26
-byte_rep = value.to_bytes(8)
-
-byte_arr[0:8] = byte_rep
-
-print(int.from_bytes(byte_arr[0:8]))
-'''
+record = query.select(0, 0, [1,1,1])[0]
+record.info_print()
