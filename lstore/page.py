@@ -40,9 +40,6 @@ class Page:
         self.num_cells += 1
 
     def write_at_location(self, value, rid):
-        if not self.has_capacity():
-            raise PageNoCapacityError
-        
         start_index = self.__locate(rid)
         end_index = start_index + self.cell_size
         # changed so that the value is converted to bytes before trying to write it

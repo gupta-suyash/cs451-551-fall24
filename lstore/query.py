@@ -128,13 +128,21 @@ class Query:
         records = []
 
         for rid in relevant_rids:
-            # get the rid corresponding to the relevant version
-            tail_flg, target_rid = self.table.page_directory.get_rid_for_version(rid, relative_version)
             res_columns = []
+            # gather the column_values from the base record
             for column_id in range(len(projected_columns_index)):
                 if projected_columns_index[column_id]:
-                    res_columns.append(self.table.page_directory.get_column_value(target_rid, column_id + Config.column_data_offset, tail_flg))
+                    res_columns.append(self.table.page_directory.get_column_value(rid, column_id + Config.column_data_offset, tail_flg=0))
 
+            # get the rid corresponding to the relevant version
+            tail_flg, target_rid = self.table.page_directory.get_rid_for_version(rid, relative_version)
+            # if there is record in tail - do the updates, otherwise return the base record data since there is not updates
+            if tail_flg:
+                schema = self.table.page_directory.get_column_value(target_rid, Config.schema_encoding_column_idx, tail_flg)
+                for column_id in range(len(projected_columns_index)):
+                    if utils.get_bit(schema, column_id):
+                        # this means that the column has been updated
+                        res_columns[column_id] = self.table.page_directory.get_column_value(target_rid, column_id + Config.column_data_offset, tail_flg)
 
             records.append(
                 Record(
