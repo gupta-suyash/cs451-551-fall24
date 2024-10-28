@@ -272,7 +272,7 @@ class Table:
         # Header (indicates primary key column)
         s += "|"
         for c in range(self.num_columns):
-            if ((c + Config.column_data_offset) == self.primary_key):
+            if (c == self.primary_key):
                 s += "*"*nsp+"|"
             else:
                 s += " "*nsp+"|"
