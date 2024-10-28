@@ -195,8 +195,8 @@ class Table:
         self.primary_key = primary_key
         self.num_columns = num_columns
         self.page_directory = PageDirectory(num_columns + Config.column_data_offset)
-        #self.index = Index(self) # TODO: Uncomment this
-
+        self.index = Index(self)
+        
     def __contains__(self, key):
         """Implements the contains operator
         

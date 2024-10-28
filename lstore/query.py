@@ -77,6 +77,7 @@ class Query:
         columns_values[Config.column_data_offset:] = columns[:]
 
         self.table.page_directory.add_record(columns_values)
+        self.table.index.maintain_insert(columns, new_rid)
         
 
     
