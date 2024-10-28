@@ -186,7 +186,7 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum(self, start_range, end_range, aggregate_column_index):
-        pass
+        return self.sum_version(start_range, end_range, aggregate_column_index, relative_version=0)
 
     
     """
@@ -199,7 +199,24 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
-        pass
+        relevant_rids = []
+
+        for rid in range(self.table.page_directory.num_records):
+            if start_range <= self.table.page_directory.get_column_value(rid, self.table.primary_key + Config.column_data_offset) <= end_range:
+                relevant_rids.append(rid)       
+
+        if len(relevant_rids) == 0:
+            return False
+        
+        result = 0
+
+        for rid in relevant_rids:
+            # get the rid corresponding to the relevant version
+            tail_flg, target_rid = self.table.page_directory.get_rid_for_version(rid, relative_version)
+            result += self.table.page_directory.get_column_value(target_rid, aggregate_column_index + Config.column_data_offset, tail_flg)
+        return result
+
+
 
     
     """
