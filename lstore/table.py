@@ -192,7 +192,7 @@ class Table:
 
         # Set internal state
         self.name = name
-        self.primary_key = primary_key + Config.column_data_offset
+        self.primary_key = primary_key
         self.num_columns = num_columns
         self.page_directory = PageDirectory(num_columns + Config.column_data_offset)
         #self.index = Index(self) # TODO: Uncomment this
