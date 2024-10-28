@@ -252,6 +252,62 @@ class Table:
 
         return self.page_directory.num_records
 
+    def __str__(self):
+        """String representation of the Table
+
+        Returns
+        -------
+        s : string
+            The string representation of the Table
+        """
+
+        # Number of spaces
+        nsp = 6
+
+        s = ""
+
+        # Top bar
+        s += ("-"*(nsp+1))*self.num_columns + "-\n"
+
+        # Header (indicates primary key column)
+        s += "|"
+        for c in range(self.num_columns):
+            if ((c + Config.column_data_offset) == self.primary_key):
+                s += "*"*nsp+"|"
+            else:
+                s += " "*nsp+"|"
+        s += "\n"
+
+        # Header bar
+        s += ("-"*nsp+"-")*self.num_columns + "-\n"
+
+        # Data
+        #s += "|"
+        for r in range(self.page_directory.num_records):
+            s += "|"
+            for c in range(self.num_columns):
+                rid = self.page_directory.get_column_value(r, Config.rid_column_idx)
+                if (rid != -1):
+                    v = self.page_directory.get_column_value(rid, c+Config.column_data_offset)
+                    s += f"{v: {nsp}}|"
+            s += "\n"
+
+        # Bottom Bar
+        s += ("-"*nsp+"-")*self.num_columns + "-"
+
+        return s
+
+    def __repr__(self):
+        """String representation of the Table
+
+        Returns
+        -------
+        s : string
+            The string representation of the Table
+        """
+
+        return self.__str__()
+
     def column_iterator(self, column, tail_flg=0):
         """Iterate through all values in a column
 
