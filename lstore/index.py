@@ -26,17 +26,20 @@ class Index:
         self.indices = [None] *  table.num_columns
         self.OrderedDataStructure = BPlusTree
         self.UnorderedDataStructure = HashMap
-        self.usage_histogram = [[0, 0]] * table.num_columns
+        self.usage_histogram = [[0 for i in range(3)] for j in range(table.num_columns)] # 0: point queries, 1: range queries, 2: inserts, 3: updates
+        self.maintenance_list = [[] for _ in range(table.num_columns)]
         self.table = table
         self.benchmark_mode = benchmark_mode
 
-        self.create_index(column_number=table.primary_key, ordered=True)
+        self.create_index(column_number=table.primary_key, ordered=False)
         
 
     def locate(self, column: int, value):
         """
         returns the location of all records with the given value on column "column"
         """
+        self.usage_histogram[column][0] += 1
+
         if column >= len(self.indices) or column < 0:
             print(f"INVALID COLUMN {column}")
 
@@ -55,6 +58,8 @@ class Index:
         
         returns list of (value, rid) pairs
         """
+        self.usage_histogram[column][1] += 1
+
         if self.indices[column]:
             index = self.indices[column]
             return index.get_range(begin, end)
@@ -99,7 +104,7 @@ class Index:
         A linear scan range query
         """
         for rid, value in self.table.column_iterator(column):
-            if value >= low_target_value and value <= high_target_value:
+            if (not low_target_value or value >= low_target_value) and (not high_target_value or value <= high_target_value):
                 yield (rid, value)
     
     def maintain_insert(self, columns, rid):
@@ -108,5 +113,13 @@ class Index:
             if index:
                 index.insert(value, rid)
 
-    def maintain_delete(self, rid):
+    def maintain_update(self, old_columns, new_columns, rid):
+        print("INDEX MAINTAIN UPDATE IS NOT IMPLIMENTED YET")
+        return
+    
+    def maintain_delete(self, columns, rid):
+        print("INDEX MAINTAIN UPDATE IS NOT IMPLIMENTED YET")
+        return
+    
+    def _apply_maintenance(self, column):
         raise NotImplementedError

@@ -87,12 +87,12 @@ class Node:
         keys_to_show = self.keys[:max_items]
         values_to_show = self.values[:max_items] if self.is_leaf else []
         
-        value_string = f", values={values_to_show}" if self.is_leaf else ""
+        value_string = f", values={values_to_show}" if self.is_leaf else f", *{len(self.values)} values*"
         if len(self.keys) > max_items:
             keys_to_show.append("...")  # formats with quotes, but it isn't worth my time to make it look pretty.
         
         if self.is_leaf and len(self.values) > max_items:
-            values_to_show.append("...")
+            value_string.append("...")
 
         return f"{node_type} Node(keys={keys_to_show}{value_string})"
 
@@ -693,7 +693,6 @@ class BPlusTree:
                     borrowed_value.parent = node
 
                 # Update parents keys
-                
                 parent.keys[index] = right_sibling.keys[0]
                 return
 
@@ -720,6 +719,9 @@ class BPlusTree:
                 for child in right_sibling.values:
                     child.parent = node
 
+                # promote first key of first child of right sibling
+                right_sibling.keys.insert(0, right_sibling.values[0].keys[0])
+
             # Take all right sibling vlaues
             node.keys.extend(right_sibling.keys)
             node.values.extend(right_sibling.values)
@@ -730,6 +732,8 @@ class BPlusTree:
             # Remove reference to right sibling
             parent.keys.pop(index)
             parent.values.pop(index + 1)
+
+        print(f"Merged node {node}")
 
         parent_is_underflowed = len(parent.keys) < self.minimum_degree - 1
         if parent_is_underflowed:
@@ -1072,6 +1076,7 @@ class TestBPlusTree(unittest.TestCase):
 
     def test_fill_and_empty_tree(self):
         tree = self.tree
+        tree.debug_mode = True
         tree.unique_keys = True
         for i in range(10):
             tree.insert(i, i*i)
