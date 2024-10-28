@@ -186,7 +186,7 @@ class Query:
         if not relevant_rids:
             return False
         
-        columns_values = [None] * (len(columns) + Config.column_data_offset)
+        columns_values = [-1] * (len(columns) + Config.column_data_offset)
 
         # need base meta information
         base_meta = []
@@ -203,7 +203,6 @@ class Query:
         new_rid = self.table.page_directory.num_tail_records
 
         columns_values[Config.rid_column_idx] = new_rid
-        columns_values[Config.schema_encoding_column_idx]
         # get current timestamp as an integer
         columns_values[Config.timestamp_column_idx] = int(datetime.datetime.now().timestamp())
         columns_values[Config.indirection_column_idx] = base_meta[Config.indirection_column_idx]
@@ -213,11 +212,11 @@ class Query:
         # if there is another update
         if base_meta[Config.indirection_column_idx] != -1:
             # get current values of record
-            old_record = self.select()[0]
+            old_record = self.select(primary_key, self.table.primary_key, [1]*len(columns))[0]
 
-            # for all bits in schema encoding that
             for i in range(len(columns)):
-                columns_values[i + Config.column_data_offset] = old_record.columns[i]
+                if utils.get_bit(base_meta[Config.schema_encoding_column_idx], i):
+                    columns_values[i + Config.column_data_offset] = old_record.columns[i]
 
         # for all columns passed in check if they are Nonetype,
         # if not add it tail record and adjust schema accordingly
@@ -226,21 +225,21 @@ class Query:
             if columns[i]:
                 columns_values[i + Config.column_data_offset] = columns[i]
                 base_meta[Config.schema_encoding_column_idx] = utils.set_bit(base_meta[Config.schema_encoding_column_idx], i)
-            else:
-                columns_values[i + Config.column_data_offset] = -1
         
         columns_values[Config.schema_encoding_column_idx] = base_meta[Config.schema_encoding_column_idx]
-    
+
         # add record to tail page
         self.table.page_directory.add_record(columns_values, tail_flg=1)
 
-        # update meta data in base page
-        for i in range(Config.column_data_offset):
-            if i == 1:
-                continue
-            page = self.table.page_directory.data[i]['Base'][page_num]
-            page.write_at_location(columns_values[i], rid)
+        ind_page = self.table.page_directory.data[Config.indirection_column_idx]['Base'][page_num]
+        ind_page.write_at_location(new_rid, rid)
 
+        time_page = self.table.page_directory.data[Config.timestamp_column_idx]['Base'][page_num]
+        time_page.write_at_location(columns_values[Config.timestamp_column_idx], rid)
+
+        schema_page = self.table.page_directory.data[Config.schema_encoding_column_idx]['Base'][page_num]
+        schema_page.write_at_location(columns_values[Config.schema_encoding_column_idx], rid)
+        
         return True
 
     """
