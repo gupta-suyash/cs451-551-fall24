@@ -278,7 +278,8 @@ class Table:
         # Loop through all possible rows and yield a value
         for i in range(len(self)):
             # Resolve the true RID
-            rid = self.page_directory.get_column_value(i, column+Config.rid_column_idx, tail_flg)
+            rid_column = Config.rid_column_idx
+            rid = self.page_directory.get_column_value(rid=i, column_id=rid_column, tail_flg=tail_flg)
             
             # Only yield if RID is valid
             if (rid != -1):
