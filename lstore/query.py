@@ -295,6 +295,8 @@ class Query:
         result = 0
 
         for rid in relevant_rids:
+            if self.table.page_directory.get_column_value(rid, Config.rid_column_idx) == -1:
+                continue
             # get the column_value from the base record
             value = self.table.page_directory.get_column_value(rid, aggregate_column_index + Config.column_data_offset, tail_flg=0)
 
