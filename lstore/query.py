@@ -76,10 +76,13 @@ class Query:
         
         columns_values[Config.column_data_offset:] = columns[:]
 
-        self.table.page_directory.add_record(columns_values)
-        self.table.index.maintain_insert(columns, new_rid)
-        
+        try:
+            self.table.page_directory.add_record(columns_values)
+            self.table.index.maintain_insert(columns, new_rid)
 
+            return True
+        except:
+            return False
     
     """
     # Read matching record with specified search key
@@ -190,10 +193,7 @@ class Query:
 
         # need base meta information
         base_meta = []
-        page_capacity = Config.page_size // 8
         rid = relevant_rids[0]
-        page_num = rid // page_capacity
-        order_id = rid % page_capacity
  
         for i in range(Config.column_data_offset):
             base_meta.append(self.table.page_directory.get_column_value(rid, i, tail_flg=0))
@@ -311,9 +311,6 @@ class Query:
             result += value
 
         return result
-
-
-
     
     """
     incremenets one column of the record
