@@ -130,7 +130,7 @@ class PageDirectory:
             assert rid < self.num_tail_records
             return self.data[column_id]['Tail'][page_num].read(order_in_page)
         
-    def set_column_value(self, rid, column_id, tail_flg = 0):
+    def set_column_value(self, rid, column_id, new_value, tail_flg = 0,):
         assert column_id < self.num_columns
 
         page_capacity = Config.page_size // 8
@@ -139,20 +139,10 @@ class PageDirectory:
 
         if tail_flg == 0:
             assert rid < self.num_records
-            return self.data[column_id]['Base'][page_num].read(order_in_page)
+            self.data[column_id]['Base'][page_num].write_at_location(new_value, order_in_page)
         else:
             assert rid < self.num_tail_records
-            return self.data[column_id]['Tail'][page_num].read(order_in_page)
-    
-    def get_tail_column_value(self, rid, column_id):
-        assert column_id < self.num_columns
-
-        page_capacity = Config.page_size // 8
-        page_num = rid // page_capacity
-        order_in_page = rid % page_capacity
-
-        return self.data[column_id]['Tail'][page_num].read(order_in_page)
-
+            self.data[column_id]['Tail'][page_num].write_at_location(new_value, order_in_page)
 
 
 

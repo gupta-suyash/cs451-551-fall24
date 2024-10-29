@@ -180,11 +180,11 @@ class Query:
             if self.table.page_directory.get_column_value(rid, self.table.primary_key+Config.column_data_offset) == primary_key:
                 relevant_rids.append(rid)       
 
-        # should be only one base rid
-        assert len(relevant_rids) == 1
-
         if not relevant_rids:
             return False
+        
+        # should be only one base rid
+        assert len(relevant_rids) == 1
         
         columns_values = [-1] * (len(columns) + Config.column_data_offset)
 
@@ -193,11 +193,10 @@ class Query:
         page_capacity = Config.page_size // 8
         rid = relevant_rids[0]
         page_num = rid // page_capacity
+        order_id = rid % page_capacity
  
         for i in range(Config.column_data_offset):
-            page = self.table.page_directory.data[i]['Base'][page_num]
-            value = page.read(rid)
-            base_meta.append(value)
+            base_meta.append(self.table.page_directory.get_column_value(rid, i, tail_flg=0))
 
         # create new tail record based off of base record data
         new_rid = self.table.page_directory.num_tail_records
@@ -213,6 +212,12 @@ class Query:
         if base_meta[Config.indirection_column_idx] != -1:
             # get current values of record
             old_record = self.select(primary_key, self.table.primary_key, [1]*len(columns))[0]
+            tail_flg, tail_rid = self.table.page_directory.get_rid_for_version(old_record.rid)
+
+            assert tail_flg == 1
+
+            # update indirection
+            columns_values[Config.indirection_column_idx] = tail_rid
 
             for i in range(len(columns)):
                 if utils.get_bit(base_meta[Config.schema_encoding_column_idx], i):
@@ -222,7 +227,7 @@ class Query:
         # if not add it tail record and adjust schema accordingly
         # else, add -1 as place holder
         for i in range(len(columns)):
-            if columns[i]:
+            if columns[i] is not None:
                 columns_values[i + Config.column_data_offset] = columns[i]
                 base_meta[Config.schema_encoding_column_idx] = utils.set_bit(base_meta[Config.schema_encoding_column_idx], i)
         
@@ -231,14 +236,29 @@ class Query:
         # add record to tail page
         self.table.page_directory.add_record(columns_values, tail_flg=1)
 
-        ind_page = self.table.page_directory.data[Config.indirection_column_idx]['Base'][page_num]
-        ind_page.write_at_location(new_rid, rid)
+        self.table.page_directory.set_column_value(
+            rid,
+            Config.indirection_column_idx,
+            new_value=new_rid,
+            tail_flg=0
+        )
+        assert self.table.page_directory.get_column_value(rid, Config.indirection_column_idx, tail_flg=0) == new_rid
 
-        time_page = self.table.page_directory.data[Config.timestamp_column_idx]['Base'][page_num]
-        time_page.write_at_location(columns_values[Config.timestamp_column_idx], rid)
+        self.table.page_directory.set_column_value(
+            rid,
+            Config.timestamp_column_idx,
+            new_value=columns_values[Config.timestamp_column_idx],
+            tail_flg=0
+        )
+        assert self.table.page_directory.get_column_value(rid, Config.timestamp_column_idx, tail_flg=0) == columns_values[Config.timestamp_column_idx]
 
-        schema_page = self.table.page_directory.data[Config.schema_encoding_column_idx]['Base'][page_num]
-        schema_page.write_at_location(columns_values[Config.schema_encoding_column_idx], rid)
+        self.table.page_directory.set_column_value(
+            rid,
+            Config.schema_encoding_column_idx,
+            new_value=columns_values[Config.schema_encoding_column_idx],
+            tail_flg=0
+        )
+        assert self.table.page_directory.get_column_value(rid, Config.schema_encoding_column_idx, tail_flg=0) == columns_values[Config.schema_encoding_column_idx]
         
         return True
 
