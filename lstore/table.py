@@ -130,7 +130,8 @@ class PageDirectory:
             assert rid < self.num_tail_records
             return self.data[column_id]['Tail'][page_num].read(order_in_page)
         
-    def set_column_value(self, rid, column_id, new_value, tail_flg = 0,):
+    def set_column_value(self, rid, column_id, new_value, tail_flg = 0):
+        assert column_id >= 0 
         assert column_id < self.num_columns
 
         page_capacity = Config.page_size // 8
@@ -360,7 +361,7 @@ class Table:
         """
 
         # Set the RID column value to -1 (invalid)
-        self.page_directory.set_column_value(rid, -1, 0)
+        self.page_directory.set_column_value(rid, Config.rid_column_idx, -1, 0)
 
     def __merge(self):
         print("merge is happening")

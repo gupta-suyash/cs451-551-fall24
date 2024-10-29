@@ -131,6 +131,10 @@ class Query:
         records = []
 
         for rid in relevant_rids:
+            # check for tombstone
+            if self.table.page_directory.get_column_value(rid, Config.rid_column_idx) == -1:
+                continue
+
             res_columns = []
             # gather the column_values from the base record
             for column_id in range(len(projected_columns_index)):
@@ -165,30 +169,25 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
-        # # general idea
-        # # use index to find rid
-        # # append the new record version to the tail page 
-        # # update schema for base and tail records
-        # # DANIEL QUESTION: do we even need schema for now? I dont seem to understand where is it used?
-        # # Update indirection column for latest tail version and for base record
-        # # DANIEL QUESTION WHAT SERVES AS PTR? Do we need another id for specific record in memory? to distinguish between tail and base records
-
-        # dumb rid search for now TODO: Add search of rid's using the index
-        
-        # first find all the relevant rids:
-
-        relevant_rids = []
+        found_rids = []
 
         for rid in range(self.table.page_directory.num_records):
             if self.table.page_directory.get_column_value(rid, self.table.primary_key+Config.column_data_offset) == primary_key:
-                relevant_rids.append(rid)       
+                found_rids.append(rid)       
+        
+        relevant_rids = []
+
+        for rid in found_rids:
+            # check for tombstone
+            if self.table.page_directory.get_column_value(rid, Config.rid_column_idx) != -1:
+                relevant_rids.append(rid)
 
         if not relevant_rids:
             return False
-        
+
         # should be only one base rid
         assert len(relevant_rids) == 1
-        
+
         columns_values = [-1] * (len(columns) + Config.column_data_offset)
 
         # need base meta information
