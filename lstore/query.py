@@ -296,9 +296,20 @@ class Query:
         result = 0
 
         for rid in relevant_rids:
+            # get the column_value from the base record
+            value = self.table.page_directory.get_column_value(rid, aggregate_column_index + Config.column_data_offset, tail_flg=0)
+
             # get the rid corresponding to the relevant version
             tail_flg, target_rid = self.table.page_directory.get_rid_for_version(rid, relative_version)
-            result += self.table.page_directory.get_column_value(target_rid, aggregate_column_index + Config.column_data_offset, tail_flg)
+            # if there is record in tail - do the updates, otherwise return the base record data since there is not updates
+            if tail_flg:
+                schema = self.table.page_directory.get_column_value(target_rid, Config.schema_encoding_column_idx, tail_flg)
+                if utils.get_bit(schema, aggregate_column_index):
+                    # this means that the column has been updated
+                    value = self.table.page_directory.get_column_value(target_rid, aggregate_column_index + Config.column_data_offset, tail_flg)
+
+            result += value
+
         return result
 
 
