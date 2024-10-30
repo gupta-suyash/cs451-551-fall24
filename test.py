@@ -1,6 +1,7 @@
 from lstore.db import Database
 from lstore.query import Query
 import unittest
+import random
 
 
 class TestLstroreDB(unittest.TestCase):
@@ -79,10 +80,91 @@ class TestLstroreDB(unittest.TestCase):
         
         self.query.delete(0)
         record = self.query.select(0, 0, [1,1,1,1,1])
-        test = record[0]
-        print(test.columns)
         self.assertFalse(record)
 
+    def test_sum_integers(self):
+        n = 514
+
+        for i in range(1,n+1):
+            self.query.insert(*[i]*5)
+
+        sum = self.query.sum(1,n+1, 2)
+
+        calc_sum = (n*(n+1)) / 2
+        self.assertEqual(sum, calc_sum)
+
+    def test_sum_version_integers(self):
+        n = 514
+
+        for i in range(1, n+1):
+            self.query.insert(*[i]*5)
+
+        for i in range(n):
+            self.query.update(i, *[i]*5)
+
+        sum = self.query.sum_version(1, n+1, 2, -1)
+
+        calc_sum = (n*(n+1)) / 2
+        self.assertEqual(sum, calc_sum)
+
+    def test_increment(self):
+        test_values = [0,1,2,3,4]
+        self.query.insert(*test_values)
+
+        for i in range(5):
+            truth = self.query.increment(0, i)
+            self.assertTrue(truth)
+        
+        record = self.query.select(0,0,[1]*5)[0]
+        self.assertListEqual([1,2,3,4,5], record.columns)
+
+    def test_mostly_all_functions(self):
+        n = 5000
+        numbers = [i for i in range(1, n + 1)] * 3
+        random.shuffle(numbers)
+        instance_dict = {}
+
+        for number in numbers:
+            if number not in instance_dict:
+                instance_dict[number] = 1
+
+                self.query.insert(*[number]*5)
+
+                record = self.query.select(number, 0, [1]*5)[0]
+                self.assertListEqual([number]*5, record.columns)
+
+                break
+
+            elif instance_dict[number] == 1:
+                instance_dict[number] = 2
+
+                num_updates = random.randint(1,3)
+                num_version = random.randint(-num_updates, 0)
+
+                for i in range(1, num_updates+1):
+                    new_record = [number+i]*5
+                    new_record[0] = None
+
+                    self.query.update(number, *new_record)
+
+                record = self.query.select_version(number, 0, [1]*5, num_version)[0]
+
+                assert_list = [number + num_version + 3]*5
+                assert_list[0] = number
+
+                self.assertListEqual(assert_list, record.columns)
+
+                break
+            
+            elif instance_dict[number] == 2:
+                self.query.delete(number)
+
+                record = self.query.select(number, 0, 0)
+
+                self.assertFalse(record)
+
+                break
+    
 if __name__ == '__main__':
     unittest.main()
 
