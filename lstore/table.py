@@ -28,6 +28,9 @@ class Record:
         print('RID:', self.rid)
         print('Columns:', self.columns)
 
+    def __getitem__(self, index):
+        return self.columns[index]
+
 class PageDirectory:
     """The PageDirectory controls access to different pages
 
