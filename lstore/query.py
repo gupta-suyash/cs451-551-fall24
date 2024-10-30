@@ -122,11 +122,13 @@ class Query:
         
         # first find all the relevant rids:
 
-        relevant_rids = []
+        # relevant_rids = []
 
-        for rid in range(self.table.page_directory.num_records):
-            if self.table.page_directory.get_column_value(rid, search_key_index + Config.column_data_offset) == search_key:
-                relevant_rids.append(rid)       
+        # for rid in range(self.table.page_directory.num_records):
+        #     if self.table.page_directory.get_column_value(rid, search_key_index + Config.column_data_offset) == search_key:
+        #         relevant_rids.append(rid)  
+
+        relevant_rids = self.table.index.locate(column=search_key_index, value=search_key)
 
         records = []
 
@@ -169,11 +171,13 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
-        found_rids = []
+        # found_rids = []
 
-        for rid in range(self.table.page_directory.num_records):
-            if self.table.page_directory.get_column_value(rid, self.table.primary_key+Config.column_data_offset) == primary_key:
-                found_rids.append(rid)       
+        # for rid in range(self.table.page_directory.num_records):
+        #     if self.table.page_directory.get_column_value(rid, self.table.primary_key+Config.column_data_offset) == primary_key:
+        #         found_rids.append(rid)
+
+        found_rids = self.table.index.locate(column=self.table.primary_key, value=primary_key)
         
         relevant_rids = []
 
@@ -259,6 +263,7 @@ class Query:
         )
         assert self.table.page_directory.get_column_value(rid, Config.schema_encoding_column_idx, tail_flg=0) == columns_values[Config.schema_encoding_column_idx]
         
+        self.table.index.maintain_update(primary_key, columns)
         return True
 
     """
@@ -283,14 +288,16 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
-        relevant_rids = []
+        # relevant_rids = []
 
-        for rid in range(self.table.page_directory.num_records):
-            if start_range <= self.table.page_directory.get_column_value(rid, self.table.primary_key + Config.column_data_offset) <= end_range:
-                relevant_rids.append(rid)       
+        # for rid in range(self.table.page_directory.num_records):
+        #     if start_range <= self.table.page_directory.get_column_value(rid, self.table.primary_key + Config.column_data_offset) <= end_range:
+        #         relevant_rids.append(rid)       
 
-        if len(relevant_rids) == 0:
-            return False
+        # if len(relevant_rids) == 0:
+        #     return False
+
+        relevant_rids = self.table.index.locate_range(begin=start_range, end=end_range, column=self.table.primary_key)
         
         result = 0
 
