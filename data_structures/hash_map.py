@@ -60,5 +60,7 @@ class HashMap:
         
     def update(self, old_key, new_key):
         value = self.get(old_key)
+        if type(value) == type([]):
+            value = value[0]
         self.remove(old_key)
         self.insert(new_key, value)

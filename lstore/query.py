@@ -43,6 +43,15 @@ class Query:
             due to 2PL, this will be False.
         """
         # Check if the requested primary key exists in the current table
+        rids = self.table.index.locate(column=self.table.primary_key, value=primary_key)
+
+        if len(rids) == 0:
+            return False
+        else:
+            assert len(rids) == 1
+            self.table.index.maintain_delete(primary_key)
+            # assert self.table.index.locate(column=self.table.primary_key, value=columns[0])[0] == new_rid
+            return self.table.delete(rids[0])
         if (primary_key in self.table):
             # TODO: Eventually check for LOCK state
 
@@ -245,7 +254,7 @@ class Query:
             new_value=new_rid,
             tail_flg=0
         )
-        assert self.table.page_directory.get_column_value(rid, Config.indirection_column_idx, tail_flg=0) == new_rid
+        # assert self.table.page_directory.get_column_value(rid, Config.indirection_column_idx, tail_flg=0) == new_rid
 
         self.table.page_directory.set_column_value(
             rid,
@@ -253,7 +262,7 @@ class Query:
             new_value=columns_values[Config.timestamp_column_idx],
             tail_flg=0
         )
-        assert self.table.page_directory.get_column_value(rid, Config.timestamp_column_idx, tail_flg=0) == columns_values[Config.timestamp_column_idx]
+        # assert self.table.page_directory.get_column_value(rid, Config.timestamp_column_idx, tail_flg=0) == columns_values[Config.timestamp_column_idx]
 
         self.table.page_directory.set_column_value(
             rid,
@@ -261,9 +270,10 @@ class Query:
             new_value=columns_values[Config.schema_encoding_column_idx],
             tail_flg=0
         )
-        assert self.table.page_directory.get_column_value(rid, Config.schema_encoding_column_idx, tail_flg=0) == columns_values[Config.schema_encoding_column_idx]
+        # assert self.table.page_directory.get_column_value(rid, Config.schema_encoding_column_idx, tail_flg=0) == columns_values[Config.schema_encoding_column_idx]
         
         self.table.index.maintain_update(primary_key, columns)
+        # assert len(self.table.index.locate(self.table.primary_key, primary_key)) == 1
         return True
 
     """

@@ -76,6 +76,7 @@ class Index:
             raise ValueError("Index at column ", column_number, " already exists")
         
         data_structure = self.OrderedDataStructure() if ordered else self.UnorderedDataStructure()
+
         self.indices[column_number] = data_structure
 
         items = list(self.table.column_iterator(column_number))
@@ -119,8 +120,8 @@ class Index:
         for column, new_value in enumerate(new_columns):
             self._apply_maintenance(column)
             index = self.indices[column]
-            if index and new_value:
-                old_value = self.table.page_directory.get_column_value(rid, column)
+            if index and (new_value is not None):
+                old_value = self.table.page_directory.get_column_value(rid, column + Config.column_data_offset)
                 index.update(old_value, new_value)
     
     def maintain_delete(self, primary_key):
@@ -131,7 +132,7 @@ class Index:
         for column, index in enumerate(self.indices):
             self._apply_maintenance(column)
             if index:
-                value = self.table.page_directory.get_column_value(rid, self.table.primary_key)
+                value = self.table.page_directory.get_column_value(rid, self.table.primary_key + Config.column_data_offset)
                 index.remove(value)
 
         return
