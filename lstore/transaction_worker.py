@@ -3,35 +3,39 @@ from lstore.index import Index
 
 class TransactionWorker:
 
-    """
-    # Creates a transaction worker object.
-    """
+
     def __init__(self, transactions = []):
+        """
+        # Creates a transaction worker object.
+        """
         self.stats = []
         self.transactions = transactions
         self.result = 0
         pass
 
     
-    """
-    Appends t to transactions
-    """
+
     def add_transaction(self, t):
+        """
+        Appends t to transactions
+        """
         self.transactions.append(t)
 
         
-    """
-    Runs all transaction as a thread
-    """
+
     def run(self):
+        """
+        Runs all transaction as a thread
+        """
         pass
         # here you need to create a thread and call __run
     
 
-    """
-    Waits for the worker to finish
-    """
+
     def join(self):
+        """
+        Waits for the worker to finish
+        """
         pass
 
 

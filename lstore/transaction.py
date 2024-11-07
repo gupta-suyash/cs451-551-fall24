@@ -3,21 +3,23 @@ from lstore.index import Index
 
 class Transaction:
 
-    """
-    # Creates a transaction object.
-    """
+
     def __init__(self):
+        """
+        # Creates a transaction object.
+        """
         self.queries = []
         pass
 
-    """
-    # Adds the given query to this transaction
-    # Example:
-    # q = Query(grades_table)
-    # t = Transaction()
-    # t.add_query(q.update, grades_table, 0, *[None, 1, None, 2, None])
-    """
+
     def add_query(self, query, table, *args):
+        """
+        # Adds the given query to this transaction
+        # Example:
+        # q = Query(grades_table)
+        # t = Transaction()
+        # t.add_query(q.update, grades_table, 0, *[None, 1, None, 2, None])
+        """
         self.queries.append((query, args))
         # use grades_table for aborting
 
