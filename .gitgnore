@@ -1,0 +1,7 @@
+*.sw?
+__pycache__
+*.pyc
+*.venv
+__MACOSX
+tags
+.DS_Store
